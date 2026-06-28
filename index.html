@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>Castoor — Cast to TV</title>
+
+<!-- ✅ Official Google Cast SDK — correct script with loadCastFramework=1 -->
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#07070d;
+  --s:#0f0f1a;
+  --b:#1a1a2e;
+  --b2:#252540;
+  --a:#7c6aff;
+  --a2:#60a5fa;
+  --adim:#7c6aff15;
+  --t:#eeeef8;
+  --m:#7070a0;
+  --ok:#22d47e;
+  --err:#ff5e5e;
+  --warn:#f59e0b;
+}
+
+html,body{
+  min-height:100dvh;
+  background:var(--bg);
+  color:var(--t);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Layout ── */
+.wrap{
+  max-width:480px;
+  margin:0 auto;
+  padding:28px 16px 64px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+/* ── Header ── */
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:4px;
+}
+
+.brand{
+  font-size:22px;
+  font-weight:700;
+  letter-spacing:-.04em;
+}
+.brand span{
+  background:linear-gradient(135deg,var(--a),var(--a2));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+/* Google's native cast button */
+google-cast-launcher{
+  --connected-color: var(--a);
+  --disconnected-color: var(--m);
+  width:30px;
+  height:30px;
+  cursor:pointer;
+  transition:opacity .2s;
+  flex-shrink:0;
+}
+google-cast-launcher:hover{opacity:.7}
+
+/* ── Status pill ── */
+.status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:var(--s);
+  border:1px solid var(--b);
+  border-radius:999px;
+  padding:9px 16px;
+  font-size:12.5px;
+  color:var(--m);
+  transition:all .3s;
+}
+.status.connected{border-color:var(--ok);color:var(--t);}
+.status.casting{border-color:var(--a);background:var(--adim);color:var(--t);}
+.status.error{border-color:var(--err);color:var(--err);}
+
+.sdot{
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--b2);
+  flex-shrink:0;
+  transition:background .3s;
+}
+.connected .sdot{background:var(--ok);}
+.casting .sdot{background:var(--a);animation:pulse 1.2s infinite;}
+.error .sdot{background:var(--err);}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── Card ── */
+.card{
+  background:var(--s);
+  border:1px solid var(--b);
+  border-radius:16px;
+  padding:20px;
+}
+
+.card-title{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--m);
+  margin-bottom:14px;
+}
+
+/* ── URL input ── */
+.url-row{display:flex;gap:8px;}
+
+textarea#url{
+  flex:1;
+  background:var(--bg);
+  border:1px solid var(--b);
+  border-radius:10px;
+  padding:11px 13px;
+  font-size:13px;
+  font-family:'Courier New',monospace;
+  color:var(--t);
+  outline:none;
+  resize:none;
+  height:72px;
+  line-height:1.6;
+  transition:border-color .2s;
+}
+textarea#url:focus{border-color:var(--a);}
+textarea#url::placeholder{color:var(--m);}
+
+/* ── Content type select ── */
+select#ctype{
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--b);
+  border-radius:10px;
+  padding:10px 13px;
+  font-size:13px;
+  color:var(--m);
+  outline:none;
+  margin-top:10px;
+  font-family:'Inter',system-ui,sans-serif;
+  appearance:none;
+  cursor:pointer;
+}
+select#ctype:focus{border-color:var(--a);}
+
+/* ── Cast button ── */
+.btn-cast{
+  width:100%;
+  padding:15px;
+  background:linear-gradient(135deg,var(--a),#5b4fd4);
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:600;
+  font-family:'Inter',system-ui,sans-serif;
+  cursor:pointer;
+  margin-top:12px;
+  letter-spacing:-.01em;
+  transition:all .18s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.btn-cast:active{transform:scale(.97);opacity:.9;}
+.btn-cast:disabled{
+  background:var(--b);
+  color:var(--m);
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* ── Presets ── */
+.presets{display:flex;flex-direction:column;gap:8px;}
+
+.preset{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--bg);
+  border:1px solid var(--b);
+  border-radius:10px;
+  padding:12px 14px;
+  cursor:pointer;
+  transition:all .15s;
+  gap:12px;
+  -webkit-tap-highlight-color:transparent;
+}
+.preset:active,.preset.active{
+  border-color:var(--a);
+  background:var(--adim);
+}
+.pname{font-size:13px;font-weight:500;color:var(--t);}
+.ptag{
+  font-size:10px;
+  background:var(--b2);
+  color:var(--m);
+  padding:3px 8px;
+  border-radius:4px;
+  font-family:'Courier New',monospace;
+  flex-shrink:0;
+}
+
+/* ── Controls ── */
+.ctrl-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.btn-c{
+  padding:12px 8px;
+  background:var(--bg);
+  border:1px solid var(--b);
+  border-radius:10px;
+  color:var(--m);
+  font-size:13px;
+  font-family:'Inter',system-ui,sans-serif;
+  font-weight:500;
+  cursor:pointer;
+  transition:all .15s;
+  text-align:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-c:active{border-color:var(--a);color:var(--t);}
+.btn-c.stop:active{border-color:var(--err);color:var(--err);}
+.btn-c:disabled{opacity:.3;cursor:not-allowed;}
+
+/* ── Volume ── */
+.vol-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.vlbl{font-size:12px;color:var(--m);min-width:52px;}
+input[type=range]{
+  flex:1;
+  appearance:none;
+  height:4px;
+  border-radius:4px;
+  background:var(--b2);
+  outline:none;
+  cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  appearance:none;
+  width:18px;height:18px;
+  border-radius:50%;
+  background:var(--a);
+  cursor:pointer;
+}
+#vval{font-size:12px;color:var(--m);min-width:32px;text-align:right;}
+
+/* ── Now playing ── */
+#np{
+  display:none;
+  background:var(--s);
+  border:1px solid var(--ok);
+  border-radius:14px;
+  padding:16px 18px;
+}
+#np.show{display:block;}
+.np-lbl{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ok);
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.np-lbl::before{
+  content:'';
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--ok);
+  animation:pulse 1s infinite;
+}
+.np-url{
+  font-size:12px;
+  font-family:'Courier New',monospace;
+  color:var(--m);
+  word-break:break-all;
+  line-height:1.5;
+}
+
+/* ── Log ── */
+#log{
+  background:var(--bg);
+  border:1px solid var(--b);
+  border-radius:10px;
+  padding:12px 14px;
+  font-size:11.5px;
+  font-family:'Courier New',monospace;
+  color:var(--m);
+  max-height:140px;
+  overflow-y:auto;
+  line-height:1.9;
+}
+.lt{color:#2a2a45;margin-right:6px;}
+.lok{color:var(--ok);}
+.lerr{color:var(--err);}
+.linfo{color:var(--a);}
+.lwarn{color:var(--warn);}
+
+/* ── iOS warning ── */
+.ios-warn{
+  background:#f59e0b18;
+  border:1px solid var(--warn);
+  border-radius:10px;
+  padding:12px 14px;
+  font-size:12px;
+  color:var(--warn);
+  line-height:1.6;
+  display:none;
+}
+.ios-warn.show{display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">Cast<span>oor</span></div>
+    <google-cast-launcher id="cast-launcher"></google-cast-launcher>
+  </div>
+
+  <!-- iOS warning -->
+  <div class="ios-warn" id="ios-warn">
+    ⚠️ iOS Chrome does not support Cast SDK. Use Safari with AirPlay, or open this page on Android Chrome or desktop Chrome.
+  </div>
+
+  <!-- Status -->
+  <div class="status" id="status">
+    <div class="sdot"></div>
+    <span id="stext">Initializing Cast SDK...</span>
+  </div>
+
+  <!-- Now playing -->
+  <div id="np">
+    <div class="np-lbl">Now Casting</div>
+    <div class="np-url" id="np-url">—</div>
+  </div>
+
+  <!-- Stream URL -->
+  <div class="card">
+    <div class="card-title">Stream URL</div>
+    <div class="url-row">
+      <textarea id="url" placeholder="https://your-server.com/live/stream.m3u8&#10;Paste any HLS / DASH / MP4 URL"></textarea>
+    </div>
+    <select id="ctype">
+      <option value="auto">🔍 Auto-detect type (recommended)</option>
+      <option value="application/x-mpegURL">HLS — application/x-mpegURL (.m3u8)</option>
+      <option value="application/dash+xml">DASH — application/dash+xml (.mpd)</option>
+      <option value="video/mp4">MP4 — video/mp4</option>
+      <option value="audio/mpeg">Audio — audio/mpeg (.mp3)</option>
+    </select>
+    <button class="btn-cast" id="btn-cast" disabled>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5c-1.1 0-2 .9-2 2v3h2v-3h14v10h-5v2h5c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-18 3v2c.93 0 1.78.28 2.5.75l1.45-1.45C3.96 10.5 2.56 10 1 10z"/></svg>
+      Cast to TV
+    </button>
+  </div>
+
+  <!-- Quick test streams -->
+  <div class="card">
+    <div class="card-title">Quick Test Streams</div>
+    <div class="presets">
+      <div class="preset active" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8">
+        <span class="pname">Mux test stream</span>
+        <span class="ptag">HLS</span>
+      </div>
+      <div class="preset" data-url="https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8">
+        <span class="pname">Apple bipbop fMP4</span>
+        <span class="ptag">HLS</span>
+      </div>
+      <div class="preset" data-url="https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd">
+        <span class="pname">Shaka angel-one</span>
+        <span class="ptag">DASH</span>
+      </div>
+      <div class="preset" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+        <span class="pname">Big Buck Bunny</span>
+        <span class="ptag">MP4</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Playback Controls -->
+  <div class="card">
+    <div class="card-title">Playback Controls</div>
+    <div class="ctrl-grid">
+      <button class="btn-c" id="btn-play" disabled>▶ Play</button>
+      <button class="btn-c" id="btn-pause" disabled>⏸ Pause</button>
+      <button class="btn-c stop" id="btn-stop" disabled>■ Stop</button>
+    </div>
+    <div class="vol-row">
+      <span class="vlbl">Volume</span>
+      <input type="range" id="vol" min="0" max="1" step="0.05" value="0.8" disabled/>
+      <span id="vval">80%</span>
+    </div>
+  </div>
+
+  <!-- Debug log -->
+  <div id="log"><span class="lt">--:--:--</span><span class="linfo">Loading Cast SDK...</span></div>
+
+</div>
+
+<script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const log=(msg,t='info')=>{
+  const el=$('log'),now=new Date().toLocaleTimeString('en-GB');
+  el.innerHTML+=`\n<span class="lt">${now}</span><span class="l${t}">${msg}</span>`;
+  el.scrollTop=el.scrollHeight;
+};
+const setStatus=(txt,cls='')=>{
+  $('status').className='status '+cls;
+  $('stext').textContent=txt;
+};
+const setControls=on=>{
+  ['btn-play','btn-pause','btn-stop','vol'].forEach(id=>$(id).disabled=!on);
+};
+
+// ── iOS detection ─────────────────────────────────────────────────────────────
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+if(isIOS){
+  $('ios-warn').classList.add('show');
+  log('iOS detected — Cast SDK not supported on iOS Chrome','warn');
+}
+
+// ── Content-type detection ────────────────────────────────────────────────────
+function detectContentType(url){
+  if(url.includes('.m3u8')||url.includes('m3u8')) return 'application/x-mpegURL';
+  if(url.includes('.mpd')) return 'application/dash+xml';
+  if(url.includes('.mp3')) return 'audio/mpeg';
+  if(url.includes('.mp4')||url.includes('.mkv')||url.includes('.mov')) return 'video/mp4';
+  return 'application/x-mpegURL'; // default to HLS
+}
+
+function detectStreamType(url){
+  if(url.includes('.m3u8')||url.includes('.mpd')) return chrome.cast.media.StreamType.LIVE;
+  return chrome.cast.media.StreamType.BUFFERED;
+}
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.preset').forEach(p=>{
+  p.addEventListener('click',()=>{
+    document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    $('url').value=p.dataset.url;
+  });
+});
+
+// ── Volume ────────────────────────────────────────────────────────────────────
+$('vol').addEventListener('input',()=>{
+  const v=parseFloat($('vol').value);
+  $('vval').textContent=Math.round(v*100)+'%';
+  const s=cast.framework.CastContext.getInstance().getCurrentSession();
+  if(s) s.setVolume(v).catch(()=>{});
+});
+
+// ── Cast SDK Init ─────────────────────────────────────────────────────────────
+// ✅ Must be set BEFORE the SDK script loads — set on window
+window['__onGCastApiAvailable']=function(isAvailable){
+  if(!isAvailable){
+    setStatus('Cast SDK unavailable','error');
+    log('Cast SDK not available — ensure HTTPS and Chrome browser','err');
+    return;
+  }
+
+  log('Cast SDK ready ✓','ok');
+
+  // ✅ Use DEFAULT_MEDIA_RECEIVER_APP_ID — no $5 registration needed
+  const ctx=cast.framework.CastContext.getInstance();
+  ctx.setOptions({
+    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+    resumeSavedSession: true,
+  });
+
+  // Session state listener
+  ctx.addEventListener(
+    cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+    e=>{
+      const S=cast.framework.SessionState;
+      const session=ctx.getCurrentSession();
+      switch(e.sessionState){
+        case S.SESSION_STARTED:
+        case S.SESSION_RESUMED:
+          const dev=session.getCastDevice().friendlyName;
+          log(`Connected to: ${dev}`,'ok');
+          setStatus(`Connected — ${dev}`,'connected');
+          $('btn-cast').disabled=false;
+          break;
+        case S.SESSION_ENDING:
+          log('Session ending...','warn');
+          break;
+        case S.SESSION_ENDED:
+          log('Disconnected','warn');
+          setStatus('Tap cast icon to connect');
+          $('btn-cast').disabled=true;
+          setControls(false);
+          $('np').classList.remove('show');
+          break;
+        case S.NO_SESSION:
+          setStatus('Tap cast icon (top right) to find devices');
+          $('btn-cast').disabled=true;
+          break;
+      }
+    }
+  );
+
+  setStatus('Tap the cast icon ↗ to find devices');
+  log('Ready — tap the cast icon to find Chromecast devices','ok');
+};
+
+// ── Cast button ───────────────────────────────────────────────────────────────
+$('btn-cast').addEventListener('click',()=>{
+  const url=$('url').value.trim();
+  if(!url){log('Enter a stream URL first','err');return;}
+
+  const session=cast.framework.CastContext.getInstance().getCurrentSession();
+  if(!session){log('No active session — tap cast icon first','err');return;}
+
+  // Content type
+  const ctypeSelect=$('ctype').value;
+  const contentType=ctypeSelect==='auto'?detectContentType(url):ctypeSelect;
+  const streamType=detectStreamType(url);
+
+  log(`Loading: ${url.split('/').slice(-2).join('/')}...`,'info');
+  log(`Type: ${contentType}`,'info');
+
+  const mediaInfo=new chrome.cast.media.MediaInfo(url,contentType);
+  mediaInfo.streamType=streamType;
+
+  // Metadata (optional but makes TV display nicer)
+  const meta=new chrome.cast.media.GenericMediaMetadata();
+  meta.title='Castoor Stream';
+  mediaInfo.metadata=meta;
+
+  const request=new chrome.cast.media.LoadRequest(mediaInfo);
+  request.autoplay=true;
+  request.currentTime=0;
+
+  session.loadMedia(request).then(()=>{
+    log('✓ Stream loaded on TV','ok');
+    setStatus(`Casting — ${session.getCastDevice().friendlyName}`,'casting');
+    setControls(true);
+    $('np').classList.add('show');
+    $('np-url').textContent=url;
+    // Set initial volume
+    session.setVolume(parseFloat($('vol').value)).catch(()=>{});
+  }).catch(err=>{
+    log(`Load failed: ${err}`,'err');
+    setStatus('Load failed — check CORS & URL','error');
+  });
+});
+
+// ── Playback controls ─────────────────────────────────────────────────────────
+$('btn-play').addEventListener('click',()=>{
+  const s=cast.framework.CastContext.getInstance().getCurrentSession();
+  const m=s?.getMediaSession();
+  if(m) m.play(null,()=>log('▶ Playing','ok'),e=>log('Play error: '+e,'err'));
+});
+
+$('btn-pause').addEventListener('click',()=>{
+  const s=cast.framework.CastContext.getInstance().getCurrentSession();
+  const m=s?.getMediaSession();
+  if(m) m.pause(null,()=>log('⏸ Paused','warn'),e=>log('Pause error: '+e,'err'));
+});
+
+$('btn-stop').addEventListener('click',()=>{
+  const s=cast.framework.CastContext.getInstance().getCurrentSession();
+  const m=s?.getMediaSession();
+  if(m) m.stop(null,()=>{
+    log('■ Stopped','warn');
+    setControls(false);
+    $('np').classList.remove('show');
+    if(s) setStatus(`Connected — ${s.getCastDevice().friendlyName}`,'connected');
+  },e=>log('Stop error: '+e,'err'));
+});
+</script>
+</body>
+</html>
