@@ -190,6 +190,7 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
     <textarea id="url" placeholder="https://your-server.com/live/stream.m3u8"></textarea>
     <select id="ctype">
       <option value="auto">🔍 Auto-detect type</option>
+      <option value="video/x-matroska">MKV — .mkv (Matroska)</option>
       <option value="application/x-mpegURL">HLS — .m3u8</option>
       <option value="application/dash+xml">DASH — .mpd</option>
       <option value="video/mp4">MP4</option>
@@ -207,7 +208,11 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
   <div class="card">
     <div class="ctitle">Quick Test Streams</div>
     <div class="presets">
-      <div class="preset active" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"><span class="pname">Mux test stream</span><span class="ptag">HLS</span></div>
+      <!-- Added User Custom Preset as default active -->
+      <div class="preset active" data-url="https://4e07bbc42bcd9d4ac669407dd39ac28e.r2.cloudflarestorage.com/hub2/91f16775072e27e06026ac87c8f15035?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=ee82582669423652edb7f42fd38b412c%2F20260729%2Fauto%2Fs3%2Faws4_request&amp;X-Amz-Date=20260729T051019Z&amp;X-Amz-Expires=28800&amp;X-Amz-SignedHeaders=host&amp;response-content-disposition=attachment%3B%20filename%3D%22Demon%20Slayer%20-%20Kimetsu%20No%20Yaiba%20Infinity%20Castle%20%282025%29%201080p%20BluRay%20REMUX%20AVC%20%5BHindi-Tamil-Telugu-English%20AMZN%20DDP%202.0%20%2B%20Japanese%20TrueHD%205.1%5D%20x264%20%28WiLSON-4kHDHub%29.mkv%22&amp;X-Amz-Signature=56df4f44ad747be9d99fc7aa68f8c3ce5750400c0cd43de0de64d9d649ec8bc7">
+        <span class="pname">Demon Slayer: Infinity Castle (The Most Anticipated!)</span><span class="ptag">MKV</span>
+      </div>
+      <div class="preset" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"><span class="pname">Mux test stream</span><span class="ptag">HLS</span></div>
       <div class="preset" data-url="https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"><span class="pname">Apple bipbop fMP4</span><span class="ptag">HLS</span></div>
       <div class="preset" data-url="https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd"><span class="pname">Shaka angel-one</span><span class="ptag">DASH</span></div>
       <div class="preset" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"><span class="pname">Big Buck Bunny</span><span class="ptag">MP4</span></div>
@@ -269,6 +274,7 @@ function setControls(on){
 function detectType(url){
   if(url.includes('.m3u8')||url.includes('m3u8')) return 'application/x-mpegURL';
   if(url.includes('.mpd')) return 'application/dash+xml';
+  if(url.includes('.mkv')) return 'video/x-matroska';
   return 'video/mp4';
 }
 function detectStreamType(url){
@@ -285,7 +291,8 @@ document.querySelectorAll('.preset').forEach(p=>{
     $('url').value=p.dataset.url;
   });
 });
-$('url').value='https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+// Set initial URL to the first active preset
+$('url').value=document.querySelector('.preset.active').dataset.url;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // AIRPLAY SETUP
@@ -463,30 +470,6 @@ function openCastDialog(){
   });
 }
 
-function castStream(){
-  const url=$('url').value.trim();
-  if(!url){ log('Enter a stream URL','err'); return; }
-  const session=cast.framework.CastContext.getInstance().getCurrentSession();
-  if(!session){ log('Not connected — tap Find TV first','err'); return; }
-  const ctypeVal=$('ctype').value;
-  const contentType=ctypeVal==='auto'?detectType(url):ctypeVal;
-  log(`Loading ${url.split('/').pop()||url}...`,'info');
-  const mediaInfo=new chrome.cast.media.MediaInfo(url,contentType);
-  mediaInfo.streamType=detectStreamType(url);
-  const request=new chrome.cast.media.LoadRequest(mediaInfo);
-  request.autoplay=true;
-  session.loadMedia(request).then(()=>{
-    log('✓ Playing on TV','ok');
-    setStatus(`Casting — ${session.getCastDevice().friendlyName}`,'casting');
-    setControls(true);
-    $('np').classList.add('show');
-    $('np-url').textContent=url;
-    session.setVolume(parseFloat($('vol').value)).catch(()=>{});
-  }).catch(err=>{
-    log(`Failed: ${err}. Check CORS on stream server.`,'err');
-  });
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
 // UNIFIED TRIGGER — detects iOS vs Android and routes correctly
 // ═════════════════════════════════════════════════════════════════════════════
@@ -509,7 +492,7 @@ function castStream(){
     if(!session){ log('Not connected — tap Find TV first','err'); return; }
     const ctypeVal=$('ctype').value;
     const contentType=ctypeVal==='auto'?detectType(url):ctypeVal;
-    log(`Loading ${url.split('/').pop()||url}...`,'info');
+    log(`Loading stream...`,'info');
     const mediaInfo=new chrome.cast.media.MediaInfo(url,contentType);
     mediaInfo.streamType=detectStreamType(url);
     const request=new chrome.cast.media.LoadRequest(mediaInfo);
