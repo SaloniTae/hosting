@@ -259,44 +259,42 @@ function triggerCast(){
 }
 
 function castStream(){
-  const url=$('url').value.trim();
-  if(!url) return log('Enter URL','err');
+  const url = $('url').value.trim();
+  if(!url) return log('Enter URL', 'err');
   
-  const ctx=cast.framework.CastContext.getInstance();
-  const session=ctx?.getCurrentSession();
-  if(!session) return log('Pair with TV first!','err');
+  const ctx = cast.framework.CastContext.getInstance();
+  const session = ctx?.getCurrentSession();
+  if(!session) return log('Pair with TV first!', 'err');
   
-  log(`Sending file to TV...`,'info');
+  log(`Sending stream to TV...`, 'info');
   
+  // Use video/mp4 for direct files (MKV/MP4) to ensure CastReceiver accepts the container
   let contentType = 'video/mp4';
-  if(url.includes('.mkv')) contentType = 'video/x-matroska';
-  else if (url.includes('.m3u8')) contentType = 'application/x-mpegURL';
+  if (url.includes('.m3u8')) {
+    contentType = 'application/x-mpegURL';
+  }
   
   const mediaInfo = new chrome.cast.media.MediaInfo(url, contentType);
-  
-  // INJECT THE SELECTED TRACKS FROM THE UI
-  const aId = parseInt($('audio-sel').value);
-  const sId = parseInt($('sub-sel').value);
-  const vId = parseInt($('qual-sel').value);
-  
-  const activeIds = [];
-  if(!isNaN(aId)) activeIds.push(aId);
-  if(!isNaN(sId)) activeIds.push(sId);
-  if(!isNaN(vId)) activeIds.push(vId);
-  
   const request = new chrome.cast.media.LoadRequest(mediaInfo);
   request.autoplay = true;
-  if(activeIds.length > 0) request.activeTrackIds = activeIds;
   
-  session.loadMedia(request).then(()=>{
-    log('✓ TV is loading stream with selected tracks!','ok');
+  // NOTE: We do NOT pass activeTrackIds here during initial load. 
+  // Passing raw ffprobe indexes on initial boot causes CastReceiver to reject the session.
+  
+  session.loadMedia(request).then(() => {
+    log('✓ TV accepted media and started playback!', 'ok');
     currentCastMediaSession = session.getMediaSession();
     setControls(true);
     startProgressTimer();
-  }).catch(err=>{
-    log(`Failed to Cast. (${err})`,'err');
+  }).catch(err => {
+    let errDetail = err;
+    if (typeof err === 'object') {
+      errDetail = err.code || JSON.stringify(err);
+    }
+    log(`Cast Failed: ${errDetail}. (Check CORS headers on stream URL)`, 'err');
   });
 }
+
 
 // ── 3. PLAYBACK CONTROLS & SMOOTH PROGRESS ────────────────────────────────
 function startProgressTimer() {
