@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<title>Castoor - Stream Prime</title>
+<title>Castoor - Stream</title>
 <script>
 window['__onGCastApiAvailable'] = function(isAvailable) {
   log(isAvailable ? 'Cast SDK ready ✓' : 'Cast SDK unavailable', isAvailable?'ok':'err');
@@ -87,17 +87,13 @@ input[type=range]:disabled::-webkit-slider-thumb{background:var(--m);cursor:not-
       </div>
     </div>
     
-    <!-- Changed to your DuckDNS URL -->
     <button class="btn-detect" onclick="scanViaVPS()">🔍 Fetch Tracks via VPS</button>
     
     <div class="track-grid">
-      <select class="track-sel" id="qual-sel" disabled>
-        <option value="">Quality: Auto</option>
-      </select>
-      <select class="track-sel" id="audio-sel" disabled>
+      <select class="track-sel" id="audio-sel" disabled onchange="updateTracksOnFly()">
         <option value="">Audio: Default / Auto</option>
       </select>
-      <select class="track-sel" id="sub-sel" disabled>
+      <select class="track-sel" id="sub-sel" disabled onchange="updateTracksOnFly()">
         <option value="">Subtitle: None / Auto</option>
       </select>
     </div>
@@ -108,7 +104,6 @@ input[type=range]:disabled::-webkit-slider-thumb{background:var(--m);cursor:not-
   <div class="card">
     <div class="ctitle">Playback Controls</div>
     
-    <!-- Smooth Progress Bar -->
     <div class="progress-row">
       <span class="time-txt" id="curr-time">00:00</span>
       <input type="range" id="progress" min="0" max="100" value="0" step="0.01" disabled onchange="seekMedia(this.value)" oninput="updateTimeScrub(this.value)"/>
@@ -135,14 +130,14 @@ input[type=range]:disabled::-webkit-slider-thumb{background:var(--m);cursor:not-
 <script>
 const $=id=>document.getElementById(id);
 
-// MAKE SURE THIS IS YOUR CORRECT SSL DOMAIN
-const VPS_API_URL = 'https://oormax-castserver.duckdns.org/api/tracks';
+// SET YOUR DOMAIN HERE
+const VPS_API_URL = 'https://yourdomain.duckdns.org/api/tracks';
 
 let currentCastMediaSession = null;
 let progressTimer = null;
 let isScrubbing = false;
+let vpsScannedTracks = []; // Holds the ffprobe track array
 
-// ── UTILITIES ───────────────────────────────────────────────────────────────
 function log(msg,t='info'){
   const el=$('log'),now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   el.innerHTML+=`\n<span class="lt">${now}</span><span class="l${t}">${msg}</span>`;
@@ -169,24 +164,25 @@ async function pasteUrl() {
   } catch (err) { $('url').focus(); }
 }
 
-// ── 1. ASK VPS FOR TRACKS BEFORE CASTING ──────────────────────────────────
+// ── 1. SCAN VIA VPS AND SAVE TRACK DATA ────────────────────────────────────
 async function scanViaVPS() {
   const url = $('url').value.trim();
   if(!url) return log('Enter URL first', 'warn');
   
   log('Asking VPS to probe stream...', 'info');
-  ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id => $(id).disabled = true);
+  ['audio-sel', 'sub-sel'].forEach(id => $(id).disabled = true);
   
   try {
     const res = await fetch(`${VPS_API_URL}?url=${encodeURIComponent(url)}`);
     const data = await res.json();
     
     if(data.status === 'success') {
+      vpsScannedTracks = data.tracks; // Store tracks for Cast SDK object creation
+      
       $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
       $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
-      $('qual-sel').innerHTML = '<option value="">Quality: Auto</option>';
       
-      let foundAudio = false, foundSub = false, foundVid = false;
+      let foundAudio = false, foundSub = false;
       
       data.tracks.forEach(t => {
         const tags = t.tags || {};
@@ -204,26 +200,22 @@ async function scanViaVPS() {
         } else if(t.codec_type === 'subtitle') {
           foundSub = true;
           $('sub-sel').innerHTML += `<option value="${t.index}">💬 ${tName}</option>`;
-        } else if(t.codec_type === 'video') {
-          foundVid = true;
-          const resText = t.height ? `${t.height}p` : 'Native';
-          $('qual-sel').innerHTML += `<option value="${t.index}">📺 Video: ${resText}${codec}</option>`;
         }
       });
       
       if(!foundAudio) log('No audio tracks found.', 'warn');
       
-      ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id => $(id).disabled = false);
+      ['audio-sel', 'sub-sel'].forEach(id => $(id).disabled = false);
       log('✓ VPS successfully extracted tracks!', 'ok');
     } else {
       log('VPS Error: ' + data.message, 'err');
     }
   } catch (err) {
-    log('VPS connection failed. Check Mixed Content or Nginx.', 'err');
+    log('VPS connection failed. Check domain/HTTPS.', 'err');
   }
 }
 
-// ── 2. CAST SDK LOGIC ──────────────────────────────────────────────────────
+// ── 2. CAST SDK INIT ───────────────────────────────────────────────────────
 function initCast(){
   const ctx=cast.framework.CastContext.getInstance();
   ctx.setOptions({
@@ -258,49 +250,88 @@ function triggerCast(){
   else ctx.requestSession().catch(()=>{});
 }
 
+// ── 3. CAST STREAM WITH EXPLICIT MEDIA TRACK OBJECTS ───────────────────────
 function castStream(){
-  const url = $('url').value.trim();
-  if(!url) return log('Enter URL', 'err');
+  const url=$('url').value.trim();
+  if(!url) return log('Enter URL','err');
   
-  const ctx = cast.framework.CastContext.getInstance();
-  const session = ctx?.getCurrentSession();
-  if(!session) return log('Pair with TV first!', 'err');
+  const ctx=cast.framework.CastContext.getInstance();
+  const session=ctx?.getCurrentSession();
+  if(!session) return log('Pair with TV first!','err');
   
-  log(`Sending stream to TV...`, 'info');
+  log(`Sending stream to TV...`,'info');
   
-  // Use video/mp4 for direct files (MKV/MP4) to ensure CastReceiver accepts the container
   let contentType = 'video/mp4';
-  if (url.includes('.m3u8')) {
-    contentType = 'application/x-mpegURL';
-  }
+  if (url.includes('.m3u8')) contentType = 'application/x-mpegURL';
   
   const mediaInfo = new chrome.cast.media.MediaInfo(url, contentType);
+  
+  // CONSTRUCT CAST TRACK MAP FOR RECEIVER
+  if (vpsScannedTracks && vpsScannedTracks.length > 0) {
+    const castTracks = [];
+    vpsScannedTracks.forEach(t => {
+      let type = null;
+      if (t.codec_type === 'audio') type = chrome.cast.media.TrackType.AUDIO;
+      else if (t.codec_type === 'subtitle') type = chrome.cast.media.TrackType.TEXT;
+      
+      if (type) {
+        const track = new chrome.cast.media.Track(t.index, type);
+        const tags = t.tags || {};
+        track.name = tags.title || tags.language || `Track ${t.index}`;
+        track.language = tags.language || 'und';
+        if (type === chrome.cast.media.TrackType.TEXT) {
+          track.subtype = chrome.cast.media.TextTrackType.SUBTITLES;
+        }
+        castTracks.push(track);
+      }
+    });
+    mediaInfo.tracks = castTracks;
+  }
+  
+  // COLLECT USER SELECTED TRACK IDs
+  const aId = parseInt($('audio-sel').value);
+  const sId = parseInt($('sub-sel').value);
+  const activeIds = [];
+  if(!isNaN(aId)) activeIds.push(aId);
+  if(!isNaN(sId)) activeIds.push(sId);
+  
   const request = new chrome.cast.media.LoadRequest(mediaInfo);
   request.autoplay = true;
+  if(activeIds.length > 0) {
+    request.activeTrackIds = activeIds;
+  }
   
-  // NOTE: We do NOT pass activeTrackIds here during initial load. 
-  // Passing raw ffprobe indexes on initial boot causes CastReceiver to reject the session.
-  
-  session.loadMedia(request).then(() => {
-    log('✓ TV accepted media and started playback!', 'ok');
+  session.loadMedia(request).then(()=>{
+    log('✓ Playing on TV with selected audio/subtitles!','ok');
     currentCastMediaSession = session.getMediaSession();
     setControls(true);
     startProgressTimer();
-  }).catch(err => {
-    let errDetail = err;
-    if (typeof err === 'object') {
-      errDetail = err.code || JSON.stringify(err);
-    }
-    log(`Cast Failed: ${errDetail}. (Check CORS headers on stream URL)`, 'err');
+  }).catch(err=>{
+    log(`Failed to Cast. (${err})`,'err');
   });
 }
 
+// ── 4. CHANGE TRACKS ON THE FLY WHILE PLAYING ──────────────────────────────
+function updateTracksOnFly() {
+  if (!currentCastMediaSession) return;
+  
+  const aId = parseInt($('audio-sel').value);
+  const sId = parseInt($('sub-sel').value);
+  const activeIds = [];
+  if(!isNaN(aId)) activeIds.push(aId);
+  if(!isNaN(sId)) activeIds.push(sId);
+  
+  const request = new chrome.cast.media.EditTracksInfoRequest(activeIds);
+  currentCastMediaSession.editTracksInfo(request, 
+    () => log('Track updated while playing!', 'ok'),
+    (err) => log('Failed to switch track on fly.', 'err')
+  );
+}
 
-// ── 3. PLAYBACK CONTROLS & SMOOTH PROGRESS ────────────────────────────────
+// ── 5. PLAYBACK CONTROLS & SMOOTH PROGRESS ────────────────────────────────
 function startProgressTimer() {
   if(progressTimer) clearInterval(progressTimer);
   
-  // 100ms smooth polling
   progressTimer = setInterval(() => {
     if(isScrubbing || !currentCastMediaSession || !currentCastMediaSession.media) return;
     
