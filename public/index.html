@@ -4,24 +4,20 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>Castoor - Stream Prime</title>
+<title>Castoor - Stream</title>
 <script>
 window['__onGCastApiAvailable'] = function(isAvailable) {
   log(isAvailable ? 'Cast SDK ready ✓' : 'Cast SDK unavailable', isAvailable?'ok':'err');
-  if (!isAvailable) { setStatus('Cast unavailable','error'); return; }
-  initCast();
+  if (isAvailable) initCast();
 };
 </script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#07070d;--s:#0f0f1a;--b:#1a1a2e;--b2:#252540;
   --a:#7c6aff;--adim:#7c6aff18;--t:#eeeef8;--m:#7070a0;
-  --ok:#22d47e;--err:#ff5e5e;--warn:#f59e0b;
-  --ap:#fc3c44;
+  --ok:#22d47e;--err:#ff5e5e;
 }
 html,body{min-height:100dvh;background:var(--bg);color:var(--t);font-family:system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;}
 .wrap{max-width:480px;margin:0 auto;padding:24px 16px 64px;display:flex;flex-direction:column;gap:14px;}
@@ -30,478 +26,162 @@ html,body{min-height:100dvh;background:var(--bg);color:var(--t);font-family:syst
 .brand{font-size:22px;font-weight:700;letter-spacing:-.04em;}
 .brand span{color:var(--a);}
 
-#cast-trigger{display:flex;align-items:center;gap:6px;background:var(--s);border:1px solid var(--b);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--m);cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;border:none;font-family:system-ui,sans-serif;}
+#cast-trigger{display:flex;align-items:center;gap:6px;background:var(--s);border:1px solid var(--b);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--m);cursor:pointer;transition:all .2s;border:none;}
 #cast-trigger.ready{border:1px solid var(--a);color:var(--a);}
-#cast-trigger.airplay{border:1px solid var(--ap);color:var(--ap);}
-#cast-trigger svg{width:16px;height:16px;flex-shrink:0;}
-
-.status{display:flex;align-items:center;gap:10px;background:var(--s);border:1px solid var(--b);border-radius:999px;padding:9px 16px;font-size:12.5px;color:var(--m);transition:all .3s;}
-.status.connected{border-color:var(--ok);color:var(--t);}
-.status.casting{border-color:var(--a);background:var(--adim);color:var(--t);}
-.status.airplaying{border-color:var(--ap);background:#fc3c4415;color:var(--t);}
-.sdot{width:8px;height:8px;border-radius:50%;background:var(--b2);flex-shrink:0;transition:background .3s;}
-.connected .sdot{background:var(--ok);}
-.casting .sdot,.airplaying .sdot{background:var(--a);animation:pulse 1.2s infinite;}
-.airplaying .sdot{background:var(--ap);}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
 
 .card{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:18px;}
 .ctitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--m);margin-bottom:12px;display:flex;justify-content:space-between;}
 
-/* URL Input enhancements */
-.url-wrap{display:flex;flex-direction:column;gap:8px;}
-textarea#url{
-  width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;
-  padding:11px 13px;font-size:12px;font-family:'Courier New',monospace;
-  color:var(--t);outline:none;resize:none;height:80px;line-height:1.4;transition:border-color .2s;
-  -webkit-user-select: text !important;
-  user-select: text !important;
-}
+textarea#url{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:11px 13px;font-size:12px;font-family:monospace;color:var(--t);outline:none;resize:none;height:80px;margin-bottom:8px;}
 textarea#url:focus{border-color:var(--a);}
-textarea#url::placeholder{color:var(--m);}
 
-.url-actions{display:flex;gap:8px;justify-content:flex-end;}
-.btn-url{background:var(--b2);color:var(--t);border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:transform .15s;}
-.btn-url:active{transform:scale(0.92);}
+.btn-detect{background:var(--a);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;width:100%;margin-bottom:12px;}
 
-.track-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;}
-select.track-sel{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px;font-size:13px;color:var(--t);outline:none;appearance:none;cursor:pointer;font-family:system-ui;transition:opacity 0.2s;}
-select.track-sel:focus{border-color:var(--a);}
+.track-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+select.track-sel{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px;font-size:13px;color:var(--t);outline:none;cursor:pointer;font-family:system-ui;}
 select.track-sel:disabled{opacity:0.4;cursor:not-allowed;}
 
-.btn-detect{background:var(--b2);color:var(--t);border:none;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;}
-.btn-detect:active{transform:scale(0.95);}
+.btn-cast{width:100%;padding:15px;background:var(--ok);color:#111;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;}
+.btn-cast:disabled{background:var(--b);color:var(--m);cursor:not-allowed;}
 
-.btn-cast{width:100%;padding:15px;background:var(--a);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:14px;letter-spacing:-.01em;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;}
-.btn-cast:active{transform:scale(.97);opacity:.85;}
-.btn-cast:disabled{background:var(--b);color:var(--m);cursor:not-allowed;transform:none;}
-.btn-cast.airplay-mode{background:var(--ap);}
-
-/* Smooth Playback & Progress */
-.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
-.time-txt{font-size:11px;color:var(--m);font-family:monospace;min-width:38px;text-align:center;}
-input[type=range]{flex:1;appearance:none;height:4px;border-radius:4px;background:var(--b2);outline:none;cursor:pointer;transition: none;} /* transition removed for 0 jitter */
-input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:var(--a);cursor:pointer;transition:transform .1s;}
-input[type=range]::-webkit-slider-thumb:active{transform:scale(1.2);}
-input[type=range]:disabled::-webkit-slider-thumb{background:var(--m);cursor:not-allowed;transform:none;}
-
-.cgrid{display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;margin-bottom:12px;}
-.btn-c{padding:12px 0;background:var(--bg);border:1px solid var(--b);border-radius:10px;color:var(--t);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;border:none;-webkit-tap-highlight-color:transparent;}
-.btn-c:active{background:var(--b2);transform:scale(0.95);}
-.btn-c:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
-.btn-c.stop{color:var(--err);}
-
-.vrow{display:flex;align-items:center;gap:12px;margin-top:10px;}
-.vlbl{font-size:12px;color:var(--m);min-width:40px;}
-
-#airplay-video{display:none;width:1px;height:1px;position:fixed;bottom:0;left:0;opacity:0;pointer-events:none;}
 #log{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:12px 14px;font-size:11px;font-family:monospace;color:var(--m);max-height:150px;overflow-y:auto;line-height:1.9;}
 .lt{color:#2a2a45;margin-right:6px;}
-.lok{color:var(--ok);}.lerr{color:var(--err);}.linfo{color:var(--a);}.lwarn{color:var(--warn);}
+.lok{color:var(--ok);}.lerr{color:var(--err);}.linfo{color:var(--a);}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="hdr">
     <div class="brand">Cast<span>oor</span></div>
-    <button id="cast-trigger" onclick="triggerCast()">
-      <svg id="trigger-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5c-1.1 0-2 .9-2 2v3h2v-3h14v10h-5v2h5c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-18 3v2c.93 0 1.78.28 2.5.75l1.45-1.45C3.96 10.5 2.56 10 1 10z"/></svg>
-      <span id="cast-trigger-label">Loading...</span>
-    </button>
-  </div>
-
-  <div class="status" id="status">
-    <div class="sdot"></div>
-    <span id="stext">Detecting device...</span>
+    <button id="cast-trigger" onclick="triggerCast()"><span id="cast-trigger-label">Loading...</span></button>
   </div>
 
   <div class="card">
-    <div class="ctitle">
-      <span>Stream Source (Direct URL)</span>
-    </div>
+    <div class="ctitle">Stream Source (Direct URL)</div>
+    <textarea id="url" placeholder="Paste MKV/MP4 URL here..."></textarea>
     
-    <div class="url-wrap">
-      <textarea id="url" placeholder="Paste direct .mkv, .mp4, or .m3u8 URL here..."></textarea>
-      <div class="url-actions">
-        <button class="btn-url" onclick="$('url').value=''; log('Input cleared', 'info');">✕ Clear</button>
-        <button class="btn-url" onclick="pasteUrl()">📋 Paste</button>
-      </div>
-    </div>
+    <button class="btn-detect" onclick="scanViaVPS()">🔍 Scan Tracks via VPS</button>
     
     <div class="track-grid">
-      <div class="ctitle" style="margin-bottom:0;">
-        <span>Tracks & Quality</span>
-        <button class="btn-detect" onclick="detectClientTracks()">Pre-Scan (HLS)</button>
-      </div>
-      <div style="font-size:10px;color:var(--m);margin-bottom:4px;line-height:1.4;">
-        *MKV files must load on TV first. Click Cast, and these will auto-unlock the second the TV finds the tracks.
-      </div>
-      <select class="track-sel" id="audio-sel" disabled onchange="updateCastTracks()">
-        <option value="">Audio: Default / Waiting...</option>
+      <select class="track-sel" id="audio-sel" disabled>
+        <option value="">Audio: Default / Auto</option>
       </select>
-      <select class="track-sel" id="sub-sel" disabled onchange="updateCastTracks()">
-        <option value="">Subtitle: None / Waiting...</option>
-      </select>
-      <select class="track-sel" id="qual-sel" disabled onchange="updateCastTracks()">
-        <option value="">Quality: Auto / Highest</option>
+      <select class="track-sel" id="sub-sel" disabled>
+        <option value="">Subtitle: None / Auto</option>
       </select>
     </div>
 
-    <button class="btn-cast" id="btn-cast" disabled onclick="castStream()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5c-1.1 0-2 .9-2 2v3h2v-3h14v10h-5v2h5c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-18 3v2c.93 0 1.78.28 2.5.75l1.45-1.45C3.96 10.5 2.56 10 1 10z"/></svg>
-      <span id="btn-cast-label">Cast to TV</span>
-    </button>
+    <button class="btn-cast" id="btn-cast" disabled onclick="castStream()">Cast to TV</button>
   </div>
 
-  <div class="card">
-    <div class="ctitle">Playback Controls</div>
-    
-    <!-- Buttery Smooth Progress Bar -->
-    <!-- Notice step="0.01" ensures pixel-perfect sliding without snapping -->
-    <div class="progress-row">
-      <span class="time-txt" id="curr-time">00:00</span>
-      <input type="range" id="progress" min="0" max="100" value="0" step="0.01" disabled onchange="seekMedia(this.value)" oninput="updateTimeScrub(this.value)"/>
-      <span class="time-txt" id="total-time">00:00</span>
-    </div>
-
-    <div class="cgrid">
-      <button class="btn-c" id="btn-rw" disabled onclick="skipMedia(-10)">⏪ 10s</button>
-      <button class="btn-c" id="btn-play" disabled onclick="ctrlPlay()">▶</button>
-      <button class="btn-c" id="btn-pause" disabled onclick="ctrlPause()">⏸</button>
-      <button class="btn-c stop" id="btn-stop" disabled onclick="ctrlStop()">■</button>
-      <button class="btn-c" id="btn-ff" disabled onclick="skipMedia(10)">10s ⏩</button>
-    </div>
-    
-    <div class="vrow">
-      <span class="vlbl">Vol</span>
-      <input type="range" id="vol" min="0" max="1" step="0.05" value="0.8" disabled oninput="ctrlVol(this)"/>
-    </div>
-  </div>
-
-  <div id="log"><span class="lt">--:--</span><span class="linfo">System ready.</span></div>
+  <div id="log"><span class="lt">--:--</span><span class="linfo">System ready. Paste URL and scan.</span></div>
 </div>
 
-<video id="airplay-video" playsinline webkit-playsinline x-webkit-airplay="allow" preload="none"></video>
-
 <script>
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 const $=id=>document.getElementById(id);
-
-let hlsInstance = null;
 let currentCastMediaSession = null;
-let progressTimer = null;
-let trackListUpdated = false;
-let isScrubbing = false;
 
-// ── UTILITIES ───────────────────────────────────────────────────────────────
+// CHANGE THIS TO YOUR VPS IP/DOMAIN
+const VPS_API_URL = 'http://194.242.56.38:5421/api/tracks';
+
 function log(msg,t='info'){
   const el=$('log'),now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   el.innerHTML+=`\n<span class="lt">${now}</span><span class="l${t}">${msg}</span>`;
   el.scrollTop=el.scrollHeight;
 }
-function setStatus(txt,cls=''){
-  $('status').className='status '+cls;
-  $('stext').textContent=txt;
-}
-function setControls(on){
-  ['btn-play','btn-pause','btn-stop','btn-rw','btn-ff','progress','vol'].forEach(id=>$(id).disabled=!on);
-}
-function formatTime(sec) {
-  if(!sec || isNaN(sec)) return "00:00";
-  sec = Math.round(sec);
-  let h = Math.floor(sec/3600);
-  let m = Math.floor((sec%3600)/60);
-  let s = sec%60;
-  if(h>0) return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-}
-function detectContentType(url){
-  if(url.includes('.m3u8')) return 'application/x-mpegURL';
-  if(url.includes('.mpd')) return 'application/dash+xml';
-  if(url.includes('.mkv')) return 'video/x-matroska';
-  return 'video/mp4'; 
-}
 
-// ── NATIVE CLIPBOARD PASTE ──────────────────────────────────────────────────
-async function pasteUrl() {
-  try {
-    const text = await navigator.clipboard.readText();
-    $('url').value = text;
-    log('URL pasted from clipboard', 'ok');
-  } catch (err) {
-    $('url').focus(); 
-  }
-}
-
-// ── 1. PRE-CAST HLS TRACK DETECTION ────────────────────────────────────────
-function detectClientTracks() {
+// ── 1. ASK VPS FOR TRACKS BEFORE CASTING ──────────────────────────────────
+async function scanViaVPS() {
   const url = $('url').value.trim();
-  if(!url) { log('Enter a URL first', 'warn'); return; }
-  if(!url.includes('.m3u8')) {
-    log('Pre-Scan is only for HLS. MKV will scan automatically when you click Cast.', 'warn');
-    return;
-  }
+  if(!url) return log('Enter URL first', 'warn');
   
-  if (Hls.isSupported()) {
-    log('Scanning stream before casting...', 'info');
-    if(hlsInstance) hlsInstance.destroy();
-    hlsInstance = new Hls();
-    hlsInstance.loadSource(url);
+  log('Asking VPS to probe stream...', 'info');
+  $('audio-sel').disabled = true;
+  $('sub-sel').disabled = true;
+  
+  try {
+    const res = await fetch(`${VPS_API_URL}?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
     
-    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-      log(`Found tracks! You can select them before casting.`, 'ok');
-      
-      $('qual-sel').innerHTML = '<option value="">Quality: Auto</option>';
-      data.levels.forEach((level, index) => { $('qual-sel').innerHTML += `<option value="${index}">${level.height}p</option>`; });
-      
+    if(data.status === 'success') {
       $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
-      if(hlsInstance.audioTracks) hlsInstance.audioTracks.forEach((t, i) => { $('audio-sel').innerHTML += `<option value="${i}">${t.name || 'Track '+i}</option>`; });
-      
       $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
-      if(hlsInstance.subtitleTracks) hlsInstance.subtitleTracks.forEach((t, i) => { $('sub-sel').innerHTML += `<option value="${i}">${t.name || 'Sub '+i}</option>`; });
       
-      ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id=>$(id).disabled=false);
-    });
-  } else { log('HLS parsing not supported natively.', 'err'); }
-}
-
-// ── 2. POST-CAST AGGRESSIVE TRACK DETECTION (FOR MKV) ──────────────────────
-function parseChromecastTracks(mediaInfo) {
-  if(!mediaInfo || !mediaInfo.tracks || mediaInfo.tracks.length === 0) return;
-  
-  log('TV has successfully decoded the file tracks!', 'ok');
-  
-  $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
-  $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
-  
-  let audioFound = false, subFound = false;
-  mediaInfo.tracks.forEach(t => {
-    let tName = t.name || t.language || 'Track ' + t.trackId;
-    if(t.type === 'AUDIO') {
-      audioFound = true;
-      $('audio-sel').innerHTML += `<option value="${t.trackId}">🔊 ${tName}</option>`;
-    } else if(t.type === 'TEXT') {
-      subFound = true;
-      $('sub-sel').innerHTML += `<option value="${t.trackId}">💬 ${tName}</option>`;
-    }
-  });
-  
-  if(!audioFound) $('audio-sel').innerHTML = '<option value="">No Audio Tracks Found</option>';
-  if(!subFound) $('sub-sel').innerHTML = '<option value="">No Subtitles Found</option>';
-  
-  ['audio-sel', 'sub-sel'].forEach(id=>$(id).disabled=false);
-  trackListUpdated = true; // Stop polling once found
-}
-
-// ── 3. UPDATE TRACKS ON THE FLY ────────────────────────────────────────────
-function updateCastTracks() {
-  if (isIOS || !currentCastMediaSession) return;
-  
-  const activeTrackIds = [];
-  const aId = parseInt($('audio-sel').value);
-  const sId = parseInt($('sub-sel').value);
-  
-  if(!isNaN(aId)) activeTrackIds.push(aId);
-  if(!isNaN(sId)) activeTrackIds.push(sId);
-
-  const request = new chrome.cast.media.EditTracksInfoRequest(activeTrackIds);
-  currentCastMediaSession.editTracksInfo(request, 
-    () => log('Tracks switched instantly on TV!', 'ok'),
-    (err) => log('Failed track switch: ' + (err.code||''), 'err')
-  );
-}
-
-// ── SMOOTH PROGRESS & POLLING LOOP (100ms) ─────────────────────────────────
-function startProgressTimer() {
-  if(progressTimer) clearInterval(progressTimer);
-  
-  // Updates 10 times a second for zero lag/jitter
-  progressTimer = setInterval(() => {
-    
-    // Aggressively check for MKV tracks every 100ms until they appear
-    if(!trackListUpdated && currentCastMediaSession && currentCastMediaSession.media && currentCastMediaSession.media.tracks) {
-      if(currentCastMediaSession.media.tracks.length > 0) {
-        parseChromecastTracks(currentCastMediaSession.media);
-      }
-    }
-
-    if(isScrubbing) return;
-
-    if(isIOS && apVideo.duration) {
-      $('curr-time').textContent = formatTime(apVideo.currentTime);
-      $('total-time').textContent = formatTime(apVideo.duration);
-      $('progress').max = apVideo.duration;
-      $('progress').value = apVideo.currentTime;
-    } else if(currentCastMediaSession && currentCastMediaSession.media) {
-      const ct = currentCastMediaSession.getEstimatedTime();
-      const dur = currentCastMediaSession.media.duration;
-      if(dur) {
-        $('total-time').textContent = formatTime(dur);
-        $('progress').max = dur; // Set exact duration max
-      }
-      $('curr-time').textContent = formatTime(ct);
-      $('progress').value = ct; // Updates with extreme precision
-    }
-  }, 100); 
-}
-
-function updateTimeScrub(val) {
-  isScrubbing = true;
-  $('curr-time').textContent = formatTime(parseFloat(val));
-}
-
-function seekMedia(val) {
-  const time = parseFloat(val);
-  isScrubbing = false;
-  
-  if(isIOS) {
-    apVideo.currentTime = time;
-  } else if(currentCastMediaSession) {
-    const request = new chrome.cast.media.SeekRequest();
-    request.currentTime = time;
-    currentCastMediaSession.seek(request);
-    log('Skipped to ' + formatTime(time), 'info');
-  }
-}
-
-function skipMedia(secs) {
-  if(isIOS) {
-    apVideo.currentTime += secs;
-  } else if(currentCastMediaSession) {
-    const ct = currentCastMediaSession.getEstimatedTime();
-    const request = new chrome.cast.media.SeekRequest();
-    request.currentTime = ct + secs;
-    currentCastMediaSession.seek(request);
-    log(`Jumped ${secs>0?'+':''}${secs}s`, 'info');
-  }
-}
-
-function ctrlPlay(){ if(isIOS) apVideo.play(); else currentCastMediaSession?.play(null); }
-function ctrlPause(){ if(isIOS) apVideo.pause(); else currentCastMediaSession?.pause(null); }
-function ctrlStop(){ 
-  if(isIOS){ apVideo.pause(); apVideo.src=''; setControls(false); clearInterval(progressTimer); } 
-  else { cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession()?.stop(null); setControls(false); clearInterval(progressTimer); } 
-}
-function ctrlVol(el){
-  const v=parseFloat(el.value);
-  if(isIOS) apVideo.volume=v;
-  else cast.framework.CastContext.getInstance()?.getCurrentSession()?.setVolume(v);
-}
-
-// ── AIRPLAY & CHROMECAST SETUP ─────────────────────────────────────────────
-const apVideo = $('airplay-video');
-
-function setupAirPlay(){
-  log('iOS detected — AirPlay mode','ok');
-  const btn=$('cast-trigger');
-  btn.className='';
-  btn.style.cssText='display:flex;align-items:center;gap:6px;background:#fc3c4415;border:1px solid #fc3c44;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:#fc3c44;cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:system-ui;';
-  $('trigger-icon').innerHTML='<path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5l-1 1v1h10v-1l-1-1h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 12H3V5h18v10z"/>';
-  $('cast-trigger-label').textContent='AirPlay';
-  $('btn-cast').disabled=false;
-  $('btn-cast').classList.add('airplay-mode');
-  setStatus('Tap "Cast to TV" for AirPlay');
-
-  if(window.WebKitPlaybackTargetAvailabilityEvent){
-    apVideo.addEventListener('webkitplaybacktargetavailabilitychanged', e=>{
-      if(e.availability==='available') setStatus('AirPlay available','connected');
-    });
-  }
-
-  apVideo.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', ()=>{
-    if(apVideo.webkitCurrentPlaybackTargetIsWireless){
-      log('✓ AirPlay started. Select tracks via iOS Control Center.','ok');
-      setStatus('AirPlay casting...','airplaying');
-      setControls(true);
-      startProgressTimer();
+      let foundAudio = false;
+      
+      data.tracks.forEach(t => {
+        let tName = t.tags?.title || t.tags?.language || t.codec_name || `Track ${t.index}`;
+        if(t.codec_type === 'audio') {
+          foundAudio = true;
+          $('audio-sel').innerHTML += `<option value="${t.index}">🔊 ${tName}</option>`;
+        } else if(t.codec_type === 'subtitle') {
+          $('sub-sel').innerHTML += `<option value="${t.index}">💬 ${tName}</option>`;
+        }
+      });
+      
+      if(!foundAudio) log('No audio tracks found by ffprobe.', 'warn');
+      
+      $('audio-sel').disabled = false;
+      $('sub-sel').disabled = false;
+      log('✓ VPS successfully extracted tracks!', 'ok');
     } else {
-      setStatus('AirPlay disconnected');
-      setControls(false);
-      clearInterval(progressTimer);
+      log('VPS Error: ' + data.message, 'err');
     }
-  });
+  } catch (err) {
+    log('VPS connection failed. Is Uvicorn running?', 'err');
+  }
 }
 
+// ── 2. CAST SDK LOGIC ──────────────────────────────────────────────────────
 function initCast(){
   const ctx=cast.framework.CastContext.getInstance();
   ctx.setOptions({
     receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
-    resumeSavedSession: true,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
   });
 
   const btn=$('cast-trigger');
   btn.classList.add('ready');
   $('cast-trigger-label').textContent='Find TV';
   $('btn-cast').disabled=false;
-  setStatus('Tap "Find TV" to pair device');
 
-  ctx.addEventListener(
-    cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-    e=>{
+  ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, e=>{
       const S=cast.framework.SessionState;
       const session=ctx.getCurrentSession();
-      switch(e.sessionState){
-        case S.SESSION_STARTED:
-        case S.SESSION_RESUMED:
-          const dev=session.getCastDevice().friendlyName;
-          log(`Connected to: ${dev}`,'ok');
-          setStatus(`Connected — ${dev}`,'connected');
-          btn.className='';
-          btn.style.cssText='display:flex;align-items:center;gap:6px;background:#22d47e18;border:1px solid #22d47e;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:#22d47e;cursor:pointer;font-family:system-ui;';
-          $('cast-trigger-label').textContent=dev;
-          break;
-        case S.SESSION_ENDED:
-          setStatus('Disconnected');
-          btn.style.cssText=''; btn.className='ready';
-          $('cast-trigger-label').textContent='Find TV';
-          setControls(false);
-          currentCastMediaSession = null;
-          clearInterval(progressTimer);
-          break;
+      if(e.sessionState === S.SESSION_STARTED || e.sessionState === S.SESSION_RESUMED){
+        const dev=session.getCastDevice().friendlyName;
+        log(`Connected to: ${dev}`,'ok');
+        $('cast-trigger-label').textContent=dev;
+      } else if (e.sessionState === S.SESSION_ENDED) {
+        $('cast-trigger-label').textContent='Find TV';
+        currentCastMediaSession = null;
       }
-    }
-  );
+  });
 }
 
 function triggerCast(){
-  if(isIOS){
-    const url=$('url').value.trim();
-    if(!url){ log('Enter URL first','err'); return; }
-    apVideo.src=url; apVideo.load();
-    if(apVideo.webkitShowPlaybackTargetPicker) apVideo.webkitShowPlaybackTargetPicker();
-  } else {
-    const ctx=cast.framework.CastContext.getInstance();
-    const session=ctx.getCurrentSession();
-    if(session) session.endSession(true);
-    else ctx.requestSession().then(()=>log('Session paired','ok')).catch(e=>{});
-  }
+  const ctx=cast.framework.CastContext.getInstance();
+  if(ctx.getCurrentSession()) ctx.getCurrentSession().endSession(true);
+  else ctx.requestSession().catch(()=>{});
 }
 
 function castStream(){
-  if(isIOS){ triggerCast(); return; }
-  
   const url=$('url').value.trim();
-  if(!url){ log('Enter URL','err'); return; }
+  if(!url) return log('Enter URL','err');
   
   const ctx=cast.framework.CastContext.getInstance();
   const session=ctx?.getCurrentSession();
-  if(!session){ log('Pair with TV first!','err'); return; }
+  if(!session) return log('Pair with TV first!','err');
   
-  const contentType = detectContentType(url);
   log(`Sending file to TV...`,'info');
   
-  // Reset track UI and prepare for polling
-  trackListUpdated = false; 
-  ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id => {
-    $(id).disabled = true;
-    $(id).innerHTML = `<option value="">Scanning TV...</option>`;
-  });
+  let contentType = 'video/mp4';
+  if(url.includes('.mkv')) contentType = 'video/x-matroska';
+  else if (url.includes('.m3u8')) contentType = 'application/x-mpegURL';
   
   const mediaInfo = new chrome.cast.media.MediaInfo(url, contentType);
   
-  // Apply pre-selected HLS tracks if they were chosen via Pre-Scan
+  // INJECT THE SELECTED TRACKS FROM THE UI
   const aId = parseInt($('audio-sel').value);
   const sId = parseInt($('sub-sel').value);
   const activeIds = [];
@@ -513,23 +193,12 @@ function castStream(){
   if(activeIds.length > 0) request.activeTrackIds = activeIds;
   
   session.loadMedia(request).then(()=>{
-    log('✓ TV is loading stream...','ok');
-    setControls(true);
-    
+    log('✓ TV is loading stream with selected tracks!','ok');
     currentCastMediaSession = session.getMediaSession();
-    
-    // Start the 100ms smooth loop which ALSO aggressively polls for Tracks
-    startProgressTimer();
-    
   }).catch(err=>{
-    log(`Failed to Cast. TV may not support this codec natively. (${err})`,'err');
+    log(`Failed to Cast. (${err})`,'err');
   });
 }
-
-(function init(){
-  if(isIOS) setupAirPlay();
-  else setStatus('Loading Cast SDK...');
-})();
 </script>
 </body>
 </html>
