@@ -55,6 +55,7 @@ textarea#url::placeholder{color:var(--m);}
 .track-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;}
 select.track-sel{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px;font-size:13px;color:var(--t);outline:none;appearance:none;cursor:pointer;font-family:system-ui;}
 select.track-sel:focus{border-color:var(--a);}
+select.track-sel:disabled{opacity:0.5;cursor:not-allowed;}
 
 .btn-detect{background:var(--b2);color:var(--t);border:none;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;}
 .btn-detect:active{transform:scale(0.95);}
@@ -64,14 +65,21 @@ select.track-sel:focus{border-color:var(--a);}
 .btn-cast:disabled{background:var(--b);color:var(--m);cursor:not-allowed;transform:none;}
 .btn-cast.airplay-mode{background:var(--ap);}
 
-.cgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
-.btn-c{padding:12px 8px;background:var(--bg);border:1px solid var(--b);border-radius:10px;color:var(--m);font-size:13px;cursor:pointer;transition:all .15s;text-align:center;border:none;}
-.btn-c:active{background:var(--b2);color:var(--t);}
-
-.vrow{display:flex;align-items:center;gap:12px;}
-.vlbl{font-size:12px;color:var(--m);min-width:40px;}
+/* Playback & Progress */
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.time-txt{font-size:11px;color:var(--m);font-family:monospace;min-width:38px;text-align:center;}
 input[type=range]{flex:1;appearance:none;height:4px;border-radius:4px;background:var(--b2);outline:none;cursor:pointer;}
 input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--a);cursor:pointer;}
+input[type=range]:disabled::-webkit-slider-thumb{background:var(--m);cursor:not-allowed;}
+
+.cgrid{display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;margin-bottom:12px;}
+.btn-c{padding:12px 0;background:var(--bg);border:1px solid var(--b);border-radius:10px;color:var(--t);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;border:none;-webkit-tap-highlight-color:transparent;}
+.btn-c:active{background:var(--b2);transform:scale(0.95);}
+.btn-c:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
+.btn-c.stop{color:var(--err);}
+
+.vrow{display:flex;align-items:center;gap:12px;margin-top:10px;}
+.vlbl{font-size:12px;color:var(--m);min-width:40px;}
 
 #airplay-video{display:none;width:1px;height:1px;position:fixed;bottom:0;left:0;opacity:0;pointer-events:none;}
 #log{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:12px 14px;font-size:11px;font-family:monospace;color:var(--m);max-height:150px;overflow-y:auto;line-height:1.9;}
@@ -104,18 +112,18 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;b
     <div class="track-grid">
       <div class="ctitle" style="margin-bottom:0;">
         <span>Tracks & Quality</span>
-        <button class="btn-detect" onclick="detectClientTracks()">Scan HLS Tracks</button>
+        <button class="btn-detect" onclick="detectClientTracks()">Pre-Scan (HLS Only)</button>
       </div>
-      <div style="font-size:10px;color:var(--m);margin-bottom:4px;">
-        *MKV/MP4 tracks will automatically populate below after you click 'Cast to TV'. HLS tracks can be scanned before casting.
+      <div style="font-size:10px;color:var(--m);margin-bottom:4px;line-height:1.4;">
+        *MKV/MP4 tracks cannot be read from a raw URL. They will automatically populate below <b>ONLY after</b> the TV successfully starts loading the file.
       </div>
-      <select class="track-sel" id="audio-sel" onchange="updateCastTracks()">
+      <select class="track-sel" id="audio-sel" disabled onchange="updateCastTracks()">
         <option value="">Audio: Default / Auto</option>
       </select>
-      <select class="track-sel" id="sub-sel" onchange="updateCastTracks()">
+      <select class="track-sel" id="sub-sel" disabled onchange="updateCastTracks()">
         <option value="">Subtitle: None / Default</option>
       </select>
-      <select class="track-sel" id="qual-sel" onchange="updateCastTracks()">
+      <select class="track-sel" id="qual-sel" disabled onchange="updateCastTracks()">
         <option value="">Quality: Auto / Highest</option>
       </select>
     </div>
@@ -128,13 +136,26 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;b
 
   <div class="card">
     <div class="ctitle">Playback Controls</div>
-    <div class="cgrid">
-      <button class="btn-c" id="btn-play" disabled onclick="ctrlPlay()">▶ Play</button>
-      <button class="btn-c" id="btn-pause" disabled onclick="ctrlPause()">⏸ Pause</button>
-      <button class="btn-c stop" id="btn-stop" disabled onclick="ctrlStop()">■ Stop</button>
+    
+    <!-- Progress Bar -->
+    <div class="progress-row">
+      <span class="time-txt" id="curr-time">00:00</span>
+      <input type="range" id="progress" min="0" max="100" value="0" step="1" disabled onchange="seekMedia(this.value)" oninput="updateTimeScrub(this.value)"/>
+      <span class="time-txt" id="total-time">00:00</span>
     </div>
+
+    <!-- Playback Buttons -->
+    <div class="cgrid">
+      <button class="btn-c" id="btn-rw" disabled onclick="skipMedia(-10)">⏪ 10s</button>
+      <button class="btn-c" id="btn-play" disabled onclick="ctrlPlay()">▶</button>
+      <button class="btn-c" id="btn-pause" disabled onclick="ctrlPause()">⏸</button>
+      <button class="btn-c stop" id="btn-stop" disabled onclick="ctrlStop()">■</button>
+      <button class="btn-c" id="btn-ff" disabled onclick="skipMedia(10)">10s ⏩</button>
+    </div>
+    
+    <!-- Volume -->
     <div class="vrow">
-      <span class="vlbl">Volume</span>
+      <span class="vlbl">Vol</span>
       <input type="range" id="vol" min="0" max="1" step="0.05" value="0.8" disabled oninput="ctrlVol(this)"/>
     </div>
   </div>
@@ -148,9 +169,14 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;b
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 const $=id=>document.getElementById(id);
+
 let hlsInstance = null;
 let currentCastMediaSession = null;
+let progressTimer = null;
+let trackListUpdated = false;
+let isScrubbing = false;
 
+// ── UTILITIES ───────────────────────────────────────────────────────────────
 function log(msg,t='info'){
   const el=$('log'),now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   el.innerHTML+=`\n<span class="lt">${now}</span><span class="l${t}">${msg}</span>`;
@@ -161,118 +187,165 @@ function setStatus(txt,cls=''){
   $('stext').textContent=txt;
 }
 function setControls(on){
-  ['btn-play','btn-pause','btn-stop','vol'].forEach(id=>$(id).disabled=!on);
+  ['btn-play','btn-pause','btn-stop','btn-rw','btn-ff','progress','vol'].forEach(id=>$(id).disabled=!on);
+}
+function formatTime(sec) {
+  if(!sec || isNaN(sec)) return "00:00";
+  sec = Math.round(sec);
+  let h = Math.floor(sec/3600);
+  let m = Math.floor((sec%3600)/60);
+  let s = sec%60;
+  if(h>0) return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
 }
 function detectContentType(url){
   if(url.includes('.m3u8')) return 'application/x-mpegURL';
   if(url.includes('.mpd')) return 'application/dash+xml';
   if(url.includes('.mkv')) return 'video/x-matroska';
-  return 'video/mp4';
+  return 'video/mp4'; // Fallback that works best for ChromeCast generic direct links
 }
 
-// ── 1. PRE-CAST HLS TRACK DETECTION ─────────────────────────────────────────
+// ── TRACK DETECTION ────────────────────────────────────────────────────────
 function detectClientTracks() {
   const url = $('url').value.trim();
-  if(!url) { log('Enter a URL first to detect tracks', 'warn'); return; }
-  
+  if(!url) { log('Enter a URL first', 'warn'); return; }
   if(!url.includes('.m3u8')) {
-    log('Client track detection is only for HLS (.m3u8). MKV/MP4 tracks will detect automatically after you click Cast.', 'warn');
+    log('Pre-Scan is only for HLS (.m3u8). Click Cast to TV to load MKV tracks.', 'warn');
     return;
   }
-
   if (Hls.isSupported()) {
-    log('Scanning HLS manifest for tracks...', 'info');
+    log('Scanning HLS...', 'info');
     if(hlsInstance) hlsInstance.destroy();
-    
     hlsInstance = new Hls();
     hlsInstance.loadSource(url);
-    
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-      log(`Found HLS Tracks: ${data.levels.length} Qualities`, 'ok');
-      
-      // Populate Quality
+      log(`Found HLS Tracks`, 'ok');
       $('qual-sel').innerHTML = '<option value="">Quality: Auto</option>';
-      data.levels.forEach((level, index) => {
-        $('qual-sel').innerHTML += `<option value="${index}">${level.height}p (${Math.round(level.bitrate/1000)} kbps)</option>`;
-      });
-
-      // Populate Audio
+      data.levels.forEach((level, index) => { $('qual-sel').innerHTML += `<option value="${index}">${level.height}p</option>`; });
+      
       $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
-      if(hlsInstance.audioTracks && hlsInstance.audioTracks.length > 0) {
-        hlsInstance.audioTracks.forEach((track, index) => {
-          $('audio-sel').innerHTML += `<option value="${index}">${track.name || track.lang || 'Track '+index}</option>`;
-        });
-      }
-
-      // Populate Subtitles
+      if(hlsInstance.audioTracks) hlsInstance.audioTracks.forEach((t, i) => { $('audio-sel').innerHTML += `<option value="${i}">${t.name || 'Track '+i}</option>`; });
+      
       $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
-      if(hlsInstance.subtitleTracks && hlsInstance.subtitleTracks.length > 0) {
-        hlsInstance.subtitleTracks.forEach((track, index) => {
-          $('sub-sel').innerHTML += `<option value="${index}">${track.name || track.lang || 'Sub '+index}</option>`;
-        });
-      }
+      if(hlsInstance.subtitleTracks) hlsInstance.subtitleTracks.forEach((t, i) => { $('sub-sel').innerHTML += `<option value="${i}">${t.name || 'Sub '+i}</option>`; });
+      
+      ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id=>$(id).disabled=false);
     });
-
-    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-      if (data.fatal) log('Failed to parse HLS: ' + data.type, 'err');
-    });
-  } else {
-    log('HLS parsing not supported in this browser.', 'err');
-  }
+  } else { log('HLS parsing not supported natively.', 'err'); }
 }
 
-// ── 2. POST-CAST CHROMECAST TRACK DETECTION ─────────────────────────────────
 function parseChromecastTracks(mediaInfo) {
-  if(!mediaInfo || !mediaInfo.tracks) {
-    log('TV did not report any extra embedded tracks.', 'warn');
-    return;
-  }
-  
-  log('TV loaded media. Embedded tracks found!', 'ok');
+  if(!mediaInfo || !mediaInfo.tracks || mediaInfo.tracks.length === 0) return;
+  log('TV loaded media. Embedded tracks detected!', 'ok');
   
   $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
   $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
   
-  let audioFound = false, subFound = false;
-
   mediaInfo.tracks.forEach(t => {
-    let trackName = t.name || t.language || 'Track ' + t.trackId;
-    if(t.type === 'AUDIO') {
-      audioFound = true;
-      $('audio-sel').innerHTML += `<option value="${t.trackId}">🔊 ${trackName}</option>`;
-    } else if(t.type === 'TEXT') {
-      subFound = true;
-      $('sub-sel').innerHTML += `<option value="${t.trackId}">💬 ${trackName}</option>`;
-    }
+    let tName = t.name || t.language || 'Track ' + t.trackId;
+    if(t.type === 'AUDIO') $('audio-sel').innerHTML += `<option value="${t.trackId}">🔊 ${tName}</option>`;
+    else if(t.type === 'TEXT') $('sub-sel').innerHTML += `<option value="${t.trackId}">💬 ${tName}</option>`;
   });
-
-  if(audioFound || subFound) log('Select tracks from the dropdowns to switch instantly.', 'info');
+  
+  ['audio-sel', 'sub-sel'].forEach(id=>$(id).disabled=false);
+  trackListUpdated = true;
 }
 
-// ── 3. UPDATE CHROMECAST TRACKS ON-THE-FLY ─────────────────────────────────
 function updateCastTracks() {
-  if (isIOS) return; // iOS handles tracks natively in AirPlay menu
-  
-  if(!currentCastMediaSession) {
-    log('Start casting first to change tracks.', 'warn');
-    return;
-  }
-
+  if (isIOS || !currentCastMediaSession) return;
   const activeTrackIds = [];
   const aId = parseInt($('audio-sel').value);
   const sId = parseInt($('sub-sel').value);
-  
   if(!isNaN(aId)) activeTrackIds.push(aId);
   if(!isNaN(sId)) activeTrackIds.push(sId);
 
   const request = new chrome.cast.media.EditTracksInfoRequest(activeTrackIds);
   currentCastMediaSession.editTracksInfo(request, 
-    () => log('Tracks successfully updated on TV!', 'ok'),
-    (err) => log('Failed to switch tracks: ' + (err.code || 'Unknown'), 'err')
+    () => log('Tracks updated on TV', 'ok'),
+    (err) => log('Failed track switch: ' + (err.code||''), 'err')
   );
 }
 
-// ── CAST SETUP (CHROMECAST & AIRPLAY) ──────────────────────────────────────
+// ── CAST SESSION EVENT LISTENER ────────────────────────────────────────────
+function onMediaUpdate(isAlive) {
+  if (!isAlive) {
+     clearInterval(progressTimer);
+     return;
+  }
+  const m = currentCastMediaSession;
+  if(m && m.media && m.media.duration) {
+     $('total-time').textContent = formatTime(m.media.duration);
+     $('progress').max = m.media.duration;
+  }
+  // If the TV finally figures out the tracks after loading the MKV, grab them!
+  if(m && m.media && m.media.tracks && !trackListUpdated) {
+     parseChromecastTracks(m.media);
+  }
+}
+
+// ── PROGRESS & PLAYBACK CONTROLS ──────────────────────────────────────────
+function startProgressTimer() {
+  if(progressTimer) clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    if(isScrubbing) return; // Don't update UI while user is dragging slider
+
+    if(isIOS && apVideo.duration) {
+      $('curr-time').textContent = formatTime(apVideo.currentTime);
+      $('total-time').textContent = formatTime(apVideo.duration);
+      $('progress').max = apVideo.duration;
+      $('progress').value = apVideo.currentTime;
+    } else if(currentCastMediaSession) {
+      const ct = currentCastMediaSession.getEstimatedTime();
+      $('curr-time').textContent = formatTime(ct);
+      $('progress').value = ct;
+    }
+  }, 1000);
+}
+
+function updateTimeScrub(val) {
+  isScrubbing = true;
+  $('curr-time').textContent = formatTime(val);
+}
+
+function seekMedia(val) {
+  const time = parseFloat(val);
+  isScrubbing = false;
+  
+  if(isIOS) {
+    apVideo.currentTime = time;
+  } else if(currentCastMediaSession) {
+    const request = new chrome.cast.media.SeekRequest();
+    request.currentTime = time;
+    currentCastMediaSession.seek(request);
+    log('Seeked to ' + formatTime(time), 'info');
+  }
+}
+
+function skipMedia(secs) {
+  if(isIOS) {
+    apVideo.currentTime += secs;
+  } else if(currentCastMediaSession) {
+    const ct = currentCastMediaSession.getEstimatedTime();
+    const request = new chrome.cast.media.SeekRequest();
+    request.currentTime = ct + secs;
+    currentCastMediaSession.seek(request);
+    log(`Skipped ${secs>0?'+':''}${secs}s`, 'info');
+  }
+}
+
+function ctrlPlay(){ if(isIOS) apVideo.play(); else currentCastMediaSession?.play(null); }
+function ctrlPause(){ if(isIOS) apVideo.pause(); else currentCastMediaSession?.pause(null); }
+function ctrlStop(){ 
+  if(isIOS){ apVideo.pause(); apVideo.src=''; setControls(false); clearInterval(progressTimer); } 
+  else { cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession()?.stop(null); setControls(false); clearInterval(progressTimer); } 
+}
+function ctrlVol(el){
+  const v=parseFloat(el.value);
+  if(isIOS) apVideo.volume=v;
+  else cast.framework.CastContext.getInstance()?.getCurrentSession()?.setVolume(v);
+}
+
+// ── CAST SETUP & INITIATION ────────────────────────────────────────────────
 const apVideo = $('airplay-video');
 
 function setupAirPlay(){
@@ -297,9 +370,11 @@ function setupAirPlay(){
       log('✓ AirPlay started. Select tracks on iOS Lock Screen.','ok');
       setStatus('AirPlay casting...','airplaying');
       setControls(true);
+      startProgressTimer();
     } else {
       setStatus('AirPlay disconnected');
       setControls(false);
+      clearInterval(progressTimer);
     }
   });
 }
@@ -339,6 +414,7 @@ function initCast(){
           $('cast-trigger-label').textContent='Find TV';
           setControls(false);
           currentCastMediaSession = null;
+          clearInterval(progressTimer);
           break;
       }
     }
@@ -367,34 +443,34 @@ function castStream(){
   const session=cast.framework.CastContext.getInstance()?.getCurrentSession();
   if(!session){ log('Connect to TV first','err'); return; }
   
-  const contentType=detectContentType(url);
-  log(`Casting file...`,'info');
+  const contentType = detectContentType(url);
+  log(`Sending stream to TV...`,'info');
   
-  const mediaInfo=new chrome.cast.media.MediaInfo(url,contentType);
-  const request=new chrome.cast.media.LoadRequest(mediaInfo);
-  request.autoplay=true;
+  trackListUpdated = false; // Reset track flag
+  ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id => {
+    $(id).disabled = true;
+    $(id).innerHTML = `<option value="">Waiting for TV...</option>`;
+  });
+  
+  const mediaInfo = new chrome.cast.media.MediaInfo(url, contentType);
+  const request = new chrome.cast.media.LoadRequest(mediaInfo);
+  request.autoplay = true;
   
   session.loadMedia(request).then(()=>{
-    log('✓ Playing on TV','ok');
+    log('✓ TV accepted media. Buffering...','ok');
     setControls(true);
-    currentCastMediaSession = session.getMediaSession();
     
-    // As soon as media loads, parse tracks TV found!
-    if(currentCastMediaSession && currentCastMediaSession.media) {
+    currentCastMediaSession = session.getMediaSession();
+    currentCastMediaSession.addUpdateListener(onMediaUpdate);
+    startProgressTimer();
+    
+    // Quick check if TV processed tracks instantly
+    if(currentCastMediaSession.media && currentCastMediaSession.media.tracks) {
        parseChromecastTracks(currentCastMediaSession.media);
     }
   }).catch(err=>{
-    log(`Failed to Cast. Check CORS. (${err})`,'err');
+    log(`Failed to Cast. TV may not support this MKV codec natively. (${err})`,'err');
   });
-}
-
-function ctrlPlay(){ if(isIOS) apVideo.play(); else currentCastMediaSession?.play(null); }
-function ctrlPause(){ if(isIOS) apVideo.pause(); else currentCastMediaSession?.pause(null); }
-function ctrlStop(){ if(isIOS){ apVideo.pause(); apVideo.src=''; setControls(false); } else { cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession()?.stop(null); setControls(false); } }
-function ctrlVol(el){
-  const v=parseFloat(el.value);
-  if(isIOS) apVideo.volume=v;
-  else cast.framework.CastContext.getInstance()?.getCurrentSession()?.setVolume(v);
 }
 
 (function init(){
