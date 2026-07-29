@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<title>Castoor - Stream</title>
+<title>Castoor - Stream Prime</title>
 <script>
 window['__onGCastApiAvailable'] = function(isAvailable) {
   log(isAvailable ? 'Cast SDK ready ✓' : 'Cast SDK unavailable', isAvailable?'ok':'err');
@@ -17,7 +17,7 @@ window['__onGCastApiAvailable'] = function(isAvailable) {
 :root{
   --bg:#07070d;--s:#0f0f1a;--b:#1a1a2e;--b2:#252540;
   --a:#7c6aff;--adim:#7c6aff18;--t:#eeeef8;--m:#7070a0;
-  --ok:#22d47e;--err:#ff5e5e;
+  --ok:#22d47e;--err:#ff5e5e;--warn:#f59e0b;
 }
 html,body{min-height:100dvh;background:var(--bg);color:var(--t);font-family:system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;}
 .wrap{max-width:480px;margin:0 auto;padding:24px 16px 64px;display:flex;flex-direction:column;gap:14px;}
@@ -32,10 +32,15 @@ html,body{min-height:100dvh;background:var(--bg);color:var(--t);font-family:syst
 .card{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:18px;}
 .ctitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--m);margin-bottom:12px;display:flex;justify-content:space-between;}
 
-textarea#url{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:11px 13px;font-size:12px;font-family:monospace;color:var(--t);outline:none;resize:none;height:80px;margin-bottom:8px;}
+.url-wrap{display:flex;flex-direction:column;gap:8px;}
+textarea#url{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:11px 13px;font-size:12px;font-family:'Courier New',monospace;color:var(--t);outline:none;resize:none;height:80px;line-height:1.4;}
 textarea#url:focus{border-color:var(--a);}
 
-.btn-detect{background:var(--a);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;width:100%;margin-bottom:12px;}
+.url-actions{display:flex;gap:8px;justify-content:flex-end;}
+.btn-url{background:var(--b2);color:var(--t);border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:transform .15s;}
+.btn-url:active{transform:scale(0.92);}
+
+.btn-detect{background:var(--a);color:#fff;border:none;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:14px;margin-top:4px;}
 
 .track-grid{display:grid;grid-template-columns:1fr;gap:10px;}
 select.track-sel{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px;font-size:13px;color:var(--t);outline:none;cursor:pointer;font-family:system-ui;}
@@ -44,9 +49,25 @@ select.track-sel:disabled{opacity:0.4;cursor:not-allowed;}
 .btn-cast{width:100%;padding:15px;background:var(--ok);color:#111;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;}
 .btn-cast:disabled{background:var(--b);color:var(--m);cursor:not-allowed;}
 
+/* Smooth Playback & Progress */
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.time-txt{font-size:11px;color:var(--m);font-family:monospace;min-width:38px;text-align:center;}
+input[type=range]{flex:1;appearance:none;height:4px;border-radius:4px;background:var(--b2);outline:none;cursor:pointer;} 
+input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:var(--a);cursor:pointer;}
+input[type=range]:disabled::-webkit-slider-thumb{background:var(--m);cursor:not-allowed;}
+
+.cgrid{display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;margin-bottom:12px;}
+.btn-c{padding:12px 0;background:var(--bg);border:1px solid var(--b);border-radius:10px;color:var(--t);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;border:none;}
+.btn-c:active{background:var(--b2);transform:scale(0.95);}
+.btn-c:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
+.btn-c.stop{color:var(--err);}
+
+.vrow{display:flex;align-items:center;gap:12px;margin-top:10px;}
+.vlbl{font-size:12px;color:var(--m);min-width:40px;}
+
 #log{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:12px 14px;font-size:11px;font-family:monospace;color:var(--m);max-height:150px;overflow-y:auto;line-height:1.9;}
 .lt{color:#2a2a45;margin-right:6px;}
-.lok{color:var(--ok);}.lerr{color:var(--err);}.linfo{color:var(--a);}
+.lok{color:var(--ok);}.lerr{color:var(--err);}.linfo{color:var(--a);}.lwarn{color:var(--warn);}
 </style>
 </head>
 <body>
@@ -58,11 +79,21 @@ select.track-sel:disabled{opacity:0.4;cursor:not-allowed;}
 
   <div class="card">
     <div class="ctitle">Stream Source (Direct URL)</div>
-    <textarea id="url" placeholder="Paste MKV/MP4 URL here..."></textarea>
+    <div class="url-wrap">
+      <textarea id="url" placeholder="Paste direct URL here..."></textarea>
+      <div class="url-actions">
+        <button class="btn-url" onclick="$('url').value=''; log('Input cleared', 'info');">✕ Clear</button>
+        <button class="btn-url" onclick="pasteUrl()">📋 Paste</button>
+      </div>
+    </div>
     
-    <button class="btn-detect" onclick="scanViaVPS()">🔍 Scan Tracks via VPS</button>
+    <!-- Changed to your DuckDNS URL -->
+    <button class="btn-detect" onclick="scanViaVPS()">🔍 Fetch Tracks via VPS</button>
     
     <div class="track-grid">
+      <select class="track-sel" id="qual-sel" disabled>
+        <option value="">Quality: Auto</option>
+      </select>
       <select class="track-sel" id="audio-sel" disabled>
         <option value="">Audio: Default / Auto</option>
       </select>
@@ -74,20 +105,68 @@ select.track-sel:disabled{opacity:0.4;cursor:not-allowed;}
     <button class="btn-cast" id="btn-cast" disabled onclick="castStream()">Cast to TV</button>
   </div>
 
+  <div class="card">
+    <div class="ctitle">Playback Controls</div>
+    
+    <!-- Smooth Progress Bar -->
+    <div class="progress-row">
+      <span class="time-txt" id="curr-time">00:00</span>
+      <input type="range" id="progress" min="0" max="100" value="0" step="0.01" disabled onchange="seekMedia(this.value)" oninput="updateTimeScrub(this.value)"/>
+      <span class="time-txt" id="total-time">00:00</span>
+    </div>
+
+    <div class="cgrid">
+      <button class="btn-c" id="btn-rw" disabled onclick="skipMedia(-10)">⏪ 10s</button>
+      <button class="btn-c" id="btn-play" disabled onclick="ctrlPlay()">▶</button>
+      <button class="btn-c" id="btn-pause" disabled onclick="ctrlPause()">⏸</button>
+      <button class="btn-c stop" id="btn-stop" disabled onclick="ctrlStop()">■</button>
+      <button class="btn-c" id="btn-ff" disabled onclick="skipMedia(10)">10s ⏩</button>
+    </div>
+    
+    <div class="vrow">
+      <span class="vlbl">Vol</span>
+      <input type="range" id="vol" min="0" max="1" step="0.05" value="0.8" disabled oninput="ctrlVol(this)"/>
+    </div>
+  </div>
+
   <div id="log"><span class="lt">--:--</span><span class="linfo">System ready. Paste URL and scan.</span></div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
-let currentCastMediaSession = null;
 
-// CHANGE THIS TO YOUR VPS IP/DOMAIN
+// MAKE SURE THIS IS YOUR CORRECT SSL DOMAIN
 const VPS_API_URL = 'https://oormax-castserver.duckdns.org/api/tracks';
 
+let currentCastMediaSession = null;
+let progressTimer = null;
+let isScrubbing = false;
+
+// ── UTILITIES ───────────────────────────────────────────────────────────────
 function log(msg,t='info'){
   const el=$('log'),now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   el.innerHTML+=`\n<span class="lt">${now}</span><span class="l${t}">${msg}</span>`;
   el.scrollTop=el.scrollHeight;
+}
+function setControls(on){
+  ['btn-play','btn-pause','btn-stop','btn-rw','btn-ff','progress','vol'].forEach(id=>$(id).disabled=!on);
+}
+function formatTime(sec) {
+  if(!sec || isNaN(sec)) return "00:00";
+  sec = Math.round(sec);
+  let h = Math.floor(sec/3600);
+  let m = Math.floor((sec%3600)/60);
+  let s = sec%60;
+  if(h>0) return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+async function pasteUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    $('url').value = text;
+    log('URL pasted', 'ok');
+  } catch (err) { $('url').focus(); }
 }
 
 // ── 1. ASK VPS FOR TRACKS BEFORE CASTING ──────────────────────────────────
@@ -96,8 +175,7 @@ async function scanViaVPS() {
   if(!url) return log('Enter URL first', 'warn');
   
   log('Asking VPS to probe stream...', 'info');
-  $('audio-sel').disabled = true;
-  $('sub-sel').disabled = true;
+  ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id => $(id).disabled = true);
   
   try {
     const res = await fetch(`${VPS_API_URL}?url=${encodeURIComponent(url)}`);
@@ -106,29 +184,42 @@ async function scanViaVPS() {
     if(data.status === 'success') {
       $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
       $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
+      $('qual-sel').innerHTML = '<option value="">Quality: Auto</option>';
       
-      let foundAudio = false;
+      let foundAudio = false, foundSub = false, foundVid = false;
       
       data.tracks.forEach(t => {
-        let tName = t.tags?.title || t.tags?.language || t.codec_name || `Track ${t.index}`;
+        const tags = t.tags || {};
+        const lang = (tags.language && tags.language !== 'und') ? `[${tags.language.toUpperCase()}] ` : '';
+        const title = tags.title ? tags.title : '';
+        const codec = t.codec_name ? ` (${t.codec_name})` : '';
+        
+        let tName = `${lang}${title}`.trim();
+        if(!tName) tName = `Track ${t.index}`;
+        tName += codec;
+
         if(t.codec_type === 'audio') {
           foundAudio = true;
           $('audio-sel').innerHTML += `<option value="${t.index}">🔊 ${tName}</option>`;
         } else if(t.codec_type === 'subtitle') {
+          foundSub = true;
           $('sub-sel').innerHTML += `<option value="${t.index}">💬 ${tName}</option>`;
+        } else if(t.codec_type === 'video') {
+          foundVid = true;
+          const resText = t.height ? `${t.height}p` : 'Native';
+          $('qual-sel').innerHTML += `<option value="${t.index}">📺 Video: ${resText}${codec}</option>`;
         }
       });
       
-      if(!foundAudio) log('No audio tracks found by ffprobe.', 'warn');
+      if(!foundAudio) log('No audio tracks found.', 'warn');
       
-      $('audio-sel').disabled = false;
-      $('sub-sel').disabled = false;
+      ['audio-sel', 'sub-sel', 'qual-sel'].forEach(id => $(id).disabled = false);
       log('✓ VPS successfully extracted tracks!', 'ok');
     } else {
       log('VPS Error: ' + data.message, 'err');
     }
   } catch (err) {
-    log('VPS connection failed. Is Uvicorn running?', 'err');
+    log('VPS connection failed. Check Mixed Content or Nginx.', 'err');
   }
 }
 
@@ -154,6 +245,8 @@ function initCast(){
         $('cast-trigger-label').textContent=dev;
       } else if (e.sessionState === S.SESSION_ENDED) {
         $('cast-trigger-label').textContent='Find TV';
+        setControls(false);
+        clearInterval(progressTimer);
         currentCastMediaSession = null;
       }
   });
@@ -184,9 +277,12 @@ function castStream(){
   // INJECT THE SELECTED TRACKS FROM THE UI
   const aId = parseInt($('audio-sel').value);
   const sId = parseInt($('sub-sel').value);
+  const vId = parseInt($('qual-sel').value);
+  
   const activeIds = [];
   if(!isNaN(aId)) activeIds.push(aId);
   if(!isNaN(sId)) activeIds.push(sId);
+  if(!isNaN(vId)) activeIds.push(vId);
   
   const request = new chrome.cast.media.LoadRequest(mediaInfo);
   request.autoplay = true;
@@ -195,9 +291,68 @@ function castStream(){
   session.loadMedia(request).then(()=>{
     log('✓ TV is loading stream with selected tracks!','ok');
     currentCastMediaSession = session.getMediaSession();
+    setControls(true);
+    startProgressTimer();
   }).catch(err=>{
     log(`Failed to Cast. (${err})`,'err');
   });
+}
+
+// ── 3. PLAYBACK CONTROLS & SMOOTH PROGRESS ────────────────────────────────
+function startProgressTimer() {
+  if(progressTimer) clearInterval(progressTimer);
+  
+  // 100ms smooth polling
+  progressTimer = setInterval(() => {
+    if(isScrubbing || !currentCastMediaSession || !currentCastMediaSession.media) return;
+    
+    const ct = currentCastMediaSession.getEstimatedTime();
+    const dur = currentCastMediaSession.media.duration;
+    
+    if(dur) {
+      $('total-time').textContent = formatTime(dur);
+      $('progress').max = dur; 
+    }
+    $('curr-time').textContent = formatTime(ct);
+    $('progress').value = ct; 
+  }, 100); 
+}
+
+function updateTimeScrub(val) {
+  isScrubbing = true;
+  $('curr-time').textContent = formatTime(parseFloat(val));
+}
+
+function seekMedia(val) {
+  const time = parseFloat(val);
+  isScrubbing = false;
+  if(currentCastMediaSession) {
+    const request = new chrome.cast.media.SeekRequest();
+    request.currentTime = time;
+    currentCastMediaSession.seek(request);
+    log('Skipped to ' + formatTime(time), 'info');
+  }
+}
+
+function skipMedia(secs) {
+  if(currentCastMediaSession) {
+    const ct = currentCastMediaSession.getEstimatedTime();
+    const request = new chrome.cast.media.SeekRequest();
+    request.currentTime = ct + secs;
+    currentCastMediaSession.seek(request);
+    log(`Jumped ${secs>0?'+':''}${secs}s`, 'info');
+  }
+}
+
+function ctrlPlay(){ currentCastMediaSession?.play(null); }
+function ctrlPause(){ currentCastMediaSession?.pause(null); }
+function ctrlStop(){ 
+  cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession()?.stop(null); 
+  setControls(false); 
+  clearInterval(progressTimer); 
+}
+function ctrlVol(el){
+  cast.framework.CastContext.getInstance()?.getCurrentSession()?.setVolume(parseFloat(el.value));
 }
 </script>
 </body>
