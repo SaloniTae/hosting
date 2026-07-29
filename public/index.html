@@ -5,18 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>Castoor</title>
+<title>Castoor - Stream</title>
 <script>
-// ✅ Must be defined BEFORE cast_sender.js loads
 window['__onGCastApiAvailable'] = function(isAvailable) {
   log(isAvailable ? 'Cast SDK ready ✓' : 'Cast SDK unavailable', isAvailable?'ok':'err');
   if (!isAvailable) { setStatus('Cast unavailable','error'); return; }
   initCast();
 };
 </script>
-<!-- Cast SDK — only loads meaningfully on Android/Desktop Chrome -->
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
-<!-- HLS.js for loading stream into video element (needed for AirPlay on iOS) -->
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -24,137 +21,66 @@ window['__onGCastApiAvailable'] = function(isAvailable) {
   --bg:#07070d;--s:#0f0f1a;--b:#1a1a2e;--b2:#252540;
   --a:#7c6aff;--adim:#7c6aff18;--t:#eeeef8;--m:#7070a0;
   --ok:#22d47e;--err:#ff5e5e;--warn:#f59e0b;
-  --ap:#fc3c44; /* Apple red for AirPlay */
+  --ap:#fc3c44;
 }
 html,body{min-height:100dvh;background:var(--bg);color:var(--t);font-family:system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;}
 .wrap{max-width:480px;margin:0 auto;padding:24px 16px 64px;display:flex;flex-direction:column;gap:14px;}
 
-/* Header */
 .hdr{display:flex;align-items:center;justify-content:space-between;}
 .brand{font-size:22px;font-weight:700;letter-spacing:-.04em;}
 .brand span{color:var(--a);}
 
-/* Cast / AirPlay trigger button */
-#cast-trigger{
-  display:flex;align-items:center;gap:6px;
-  background:var(--s);border:1px solid var(--b);
-  border-radius:999px;padding:7px 14px;
-  font-size:12px;font-weight:600;color:var(--m);
-  cursor:pointer;transition:all .2s;
-  -webkit-tap-highlight-color:transparent;border:none;
-  font-family:system-ui,sans-serif;
-}
+#cast-trigger{display:flex;align-items:center;gap:6px;background:var(--s);border:1px solid var(--b);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--m);cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;border:none;font-family:system-ui,sans-serif;}
 #cast-trigger.ready{border:1px solid var(--a);color:var(--a);}
 #cast-trigger.airplay{border:1px solid var(--ap);color:var(--ap);}
-#cast-trigger.connected{border:1px solid var(--ok);color:var(--ok);}
 #cast-trigger svg{width:16px;height:16px;flex-shrink:0;}
 
-/* Status */
 .status{display:flex;align-items:center;gap:10px;background:var(--s);border:1px solid var(--b);border-radius:999px;padding:9px 16px;font-size:12.5px;color:var(--m);transition:all .3s;}
 .status.connected{border-color:var(--ok);color:var(--t);}
 .status.casting{border-color:var(--a);background:var(--adim);color:var(--t);}
 .status.airplaying{border-color:var(--ap);background:#fc3c4415;color:var(--t);}
-.status.error{border-color:var(--err);color:var(--err);}
 .sdot{width:8px;height:8px;border-radius:50%;background:var(--b2);flex-shrink:0;transition:background .3s;}
 .connected .sdot{background:var(--ok);}
 .casting .sdot,.airplaying .sdot{background:var(--a);animation:pulse 1.2s infinite;}
 .airplaying .sdot{background:var(--ap);}
-.error .sdot{background:var(--err);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
 
-/* Device badge — shows what mode we're in */
-#device-badge{
-  display:none;
-  align-items:center;gap:8px;
-  background:var(--s);border:1px solid var(--b);
-  border-radius:10px;padding:10px 14px;
-  font-size:12px;color:var(--m);
-}
-#device-badge.show{display:flex;}
-.badge-icon{font-size:16px;}
-.badge-info{display:flex;flex-direction:column;gap:2px;}
-.badge-proto{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
-.badge-proto.cast{color:var(--a);}
-.badge-proto.airplay{color:var(--ap);}
-.badge-name{font-size:13px;font-weight:500;color:var(--t);}
-
-/* Card */
 .card{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:18px;}
-.ctitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--m);margin-bottom:12px;}
+.ctitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--m);margin-bottom:12px;display:flex;justify-content:space-between;}
 
-/* URL */
-textarea#url{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:11px 13px;font-size:13px;font-family:'Courier New',monospace;color:var(--t);outline:none;resize:none;height:70px;line-height:1.6;transition:border-color .2s;}
+textarea#url{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:11px 13px;font-size:12px;font-family:'Courier New',monospace;color:var(--t);outline:none;resize:none;height:80px;line-height:1.4;transition:border-color .2s;}
 textarea#url:focus{border-color:var(--a);}
 textarea#url::placeholder{color:var(--m);}
-select#ctype{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--m);outline:none;margin-top:10px;appearance:none;cursor:pointer;font-family:system-ui,sans-serif;}
 
-/* Main action button */
-.btn-cast{
-  width:100%;padding:15px;
-  background:var(--a);color:#fff;border:none;
-  border-radius:12px;font-size:15px;font-weight:600;
-  cursor:pointer;margin-top:12px;letter-spacing:-.01em;
-  transition:all .18s;display:flex;align-items:center;
-  justify-content:center;gap:8px;
-  -webkit-tap-highlight-color:transparent;
-  font-family:system-ui,sans-serif;
-}
+.track-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;}
+select.track-sel{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px;font-size:13px;color:var(--t);outline:none;appearance:none;cursor:pointer;font-family:system-ui;}
+select.track-sel:focus{border-color:var(--a);}
+
+.btn-detect{background:var(--b2);color:var(--t);border:none;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;}
+.btn-detect:active{transform:scale(0.95);}
+
+.btn-cast{width:100%;padding:15px;background:var(--a);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:14px;letter-spacing:-.01em;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;}
 .btn-cast:active{transform:scale(.97);opacity:.85;}
 .btn-cast:disabled{background:var(--b);color:var(--m);cursor:not-allowed;transform:none;}
 .btn-cast.airplay-mode{background:var(--ap);}
 
-/* AirPlay note */
-.ap-note{font-size:11px;color:var(--m);margin-top:8px;line-height:1.5;padding:0 2px;}
-.ap-note span{color:var(--ap);}
-
-/* Presets */
-.presets{display:flex;flex-direction:column;gap:8px;}
-.preset{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s;gap:12px;-webkit-tap-highlight-color:transparent;}
-.preset:active,.preset.active{border-color:var(--a);background:var(--adim);}
-.pname{font-size:13px;font-weight:500;color:var(--t);}
-.ptag{font-size:10px;background:var(--b2);color:var(--m);padding:3px 8px;border-radius:4px;font-family:monospace;flex-shrink:0;}
-
-/* Controls */
 .cgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
-.btn-c{padding:12px 8px;background:var(--bg);border:1px solid var(--b);border-radius:10px;color:var(--m);font-size:13px;cursor:pointer;transition:all .15s;text-align:center;-webkit-tap-highlight-color:transparent;font-family:system-ui,sans-serif;}
-.btn-c:active{border-color:var(--a);color:var(--t);}
-.btn-c.stop:active{border-color:var(--err);color:var(--err);}
-.btn-c:disabled{opacity:.3;cursor:not-allowed;}
+.btn-c{padding:12px 8px;background:var(--bg);border:1px solid var(--b);border-radius:10px;color:var(--m);font-size:13px;cursor:pointer;transition:all .15s;text-align:center;border:none;}
+.btn-c:active{background:var(--b2);color:var(--t);}
 
-/* Volume */
 .vrow{display:flex;align-items:center;gap:12px;}
-.vlbl{font-size:12px;color:var(--m);min-width:52px;}
+.vlbl{font-size:12px;color:var(--m);min-width:40px;}
 input[type=range]{flex:1;appearance:none;height:4px;border-radius:4px;background:var(--b2);outline:none;cursor:pointer;}
-input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:var(--a);cursor:pointer;}
-#vval{font-size:12px;color:var(--m);min-width:32px;text-align:right;}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--a);cursor:pointer;}
 
-/* Now playing */
-#np{display:none;background:var(--s);border:1px solid var(--ok);border-radius:14px;padding:14px 16px;}
-#np.show{display:block;}
-.nplbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ok);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
-.nplbl::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 1s infinite;}
-.npurl{font-size:11px;font-family:monospace;color:var(--m);word-break:break-all;line-height:1.5;}
-
-/* Hidden video element — needed for AirPlay */
-#airplay-video{
-  display:none; /* hidden but active */
-  width:1px;height:1px;
-  position:fixed;
-  bottom:0;left:0;
-  opacity:0;
-  pointer-events:none;
-}
-
-/* Log */
-#log{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:12px 14px;font-size:11px;font-family:monospace;color:var(--m);max-height:130px;overflow-y:auto;line-height:1.9;}
+#airplay-video{display:none;width:1px;height:1px;position:fixed;bottom:0;left:0;opacity:0;pointer-events:none;}
+#log{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:12px 14px;font-size:11px;font-family:monospace;color:var(--m);max-height:150px;overflow-y:auto;line-height:1.9;}
 .lt{color:#2a2a45;margin-right:6px;}
 .lok{color:var(--ok);}.lerr{color:var(--err);}.linfo{color:var(--a);}.lwarn{color:var(--warn);}
 </style>
 </head>
 <body>
 <div class="wrap">
-
-  <!-- Header -->
   <div class="hdr">
     <div class="brand">Cast<span>oor</span></div>
     <button id="cast-trigger" onclick="triggerCast()">
@@ -163,63 +89,43 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
     </button>
   </div>
 
-  <!-- Status -->
   <div class="status" id="status">
     <div class="sdot"></div>
     <span id="stext">Detecting device...</span>
   </div>
 
-  <!-- Device badge -->
-  <div id="device-badge">
-    <span class="badge-icon" id="badge-icon">📺</span>
-    <div class="badge-info">
-      <span class="badge-proto" id="badge-proto">—</span>
-      <span class="badge-name" id="badge-name">—</span>
-    </div>
-  </div>
-
-  <!-- Now playing -->
-  <div id="np">
-    <div class="nplbl">Now Casting</div>
-    <div class="npurl" id="np-url">—</div>
-  </div>
-
-  <!-- Stream URL card -->
+  <!-- Direct URL Input -->
   <div class="card">
-    <div class="ctitle">Stream URL</div>
-    <textarea id="url" placeholder="https://your-server.com/live/stream.m3u8"></textarea>
-    <select id="ctype">
-      <option value="auto">🔍 Auto-detect type</option>
-      <option value="video/x-matroska">MKV — .mkv (Matroska)</option>
-      <option value="application/x-mpegURL">HLS — .m3u8</option>
-      <option value="application/dash+xml">DASH — .mpd</option>
-      <option value="video/mp4">MP4</option>
-    </select>
+    <div class="ctitle">
+      <span>Stream Source (Direct URL)</span>
+    </div>
+    <textarea id="url" placeholder="Paste direct .mkv, .mp4, or .m3u8 URL here..."></textarea>
+    
+    <div class="track-grid">
+      <div class="ctitle" style="margin-bottom:0;">
+        <span>Tracks & Quality</span>
+        <button class="btn-detect" onclick="detectClientTracks()">Scan HLS Tracks</button>
+      </div>
+      <div style="font-size:10px;color:var(--m);margin-bottom:4px;">
+        *MKV/MP4 tracks will automatically populate below after you click 'Cast to TV'. HLS tracks can be scanned before casting.
+      </div>
+      <select class="track-sel" id="audio-sel" onchange="updateCastTracks()">
+        <option value="">Audio: Default / Auto</option>
+      </select>
+      <select class="track-sel" id="sub-sel" onchange="updateCastTracks()">
+        <option value="">Subtitle: None / Default</option>
+      </select>
+      <select class="track-sel" id="qual-sel" onchange="updateCastTracks()">
+        <option value="">Quality: Auto / Highest</option>
+      </select>
+    </div>
+
     <button class="btn-cast" id="btn-cast" disabled onclick="castStream()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5c-1.1 0-2 .9-2 2v3h2v-3h14v10h-5v2h5c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-18 3v2c.93 0 1.78.28 2.5.75l1.45-1.45C3.96 10.5 2.56 10 1 10z"/></svg>
       <span id="btn-cast-label">Cast to TV</span>
     </button>
-    <div class="ap-note" id="ap-note" style="display:none">
-      📱 On iPhone: tap <span>Cast to TV</span> above → iOS AirPlay picker appears → select your Apple TV or Smart TV
-    </div>
   </div>
 
-  <!-- Test streams -->
-  <div class="card">
-    <div class="ctitle">Quick Test Streams</div>
-    <div class="presets">
-      <!-- Added User Custom Preset as default active -->
-      <div class="preset active" data-url="https://4e07bbc42bcd9d4ac669407dd39ac28e.r2.cloudflarestorage.com/hub2/91f16775072e27e06026ac87c8f15035?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=ee82582669423652edb7f42fd38b412c%2F20260729%2Fauto%2Fs3%2Faws4_request&amp;X-Amz-Date=20260729T051019Z&amp;X-Amz-Expires=28800&amp;X-Amz-SignedHeaders=host&amp;response-content-disposition=attachment%3B%20filename%3D%22Demon%20Slayer%20-%20Kimetsu%20No%20Yaiba%20Infinity%20Castle%20%282025%29%201080p%20BluRay%20REMUX%20AVC%20%5BHindi-Tamil-Telugu-English%20AMZN%20DDP%202.0%20%2B%20Japanese%20TrueHD%205.1%5D%20x264%20%28WiLSON-4kHDHub%29.mkv%22&amp;X-Amz-Signature=56df4f44ad747be9d99fc7aa68f8c3ce5750400c0cd43de0de64d9d649ec8bc7">
-        <span class="pname">Demon Slayer: Infinity Castle (The Most Anticipated!)</span><span class="ptag">MKV</span>
-      </div>
-      <div class="preset" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"><span class="pname">Mux test stream</span><span class="ptag">HLS</span></div>
-      <div class="preset" data-url="https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"><span class="pname">Apple bipbop fMP4</span><span class="ptag">HLS</span></div>
-      <div class="preset" data-url="https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd"><span class="pname">Shaka angel-one</span><span class="ptag">DASH</span></div>
-      <div class="preset" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"><span class="pname">Big Buck Bunny</span><span class="ptag">MP4</span></div>
-    </div>
-  </div>
-
-  <!-- Playback controls -->
   <div class="card">
     <div class="ctitle">Playback Controls</div>
     <div class="cgrid">
@@ -230,35 +136,21 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
     <div class="vrow">
       <span class="vlbl">Volume</span>
       <input type="range" id="vol" min="0" max="1" step="0.05" value="0.8" disabled oninput="ctrlVol(this)"/>
-      <span id="vval">80%</span>
     </div>
   </div>
 
-  <div id="log"><span class="lt">--:--</span><span class="linfo">Starting up...</span></div>
+  <div id="log"><span class="lt">--:--</span><span class="linfo">Ready for URL.</span></div>
 </div>
 
-<!--
-  ✅ AIRPLAY KEY: This hidden video element is what iOS uses for AirPlay.
-  webkitAirPlay="allow" + webkitShowPlaybackTargetPicker() triggers iOS native picker.
-  Safari on iOS loads the HLS stream natively — no hls.js needed for AirPlay itself.
--->
-<video
-  id="airplay-video"
-  playsinline
-  webkit-playsinline
-  x-webkit-airplay="allow"
-  preload="none"
-></video>
+<video id="airplay-video" playsinline webkit-playsinline x-webkit-airplay="allow" preload="none"></video>
 
 <script>
-// ── Device detection ──────────────────────────────────────────────────────────
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-const isIOSSafari = isIOS && isSafari;
-const isAndroid = /Android/.test(navigator.userAgent);
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const $=id=>document.getElementById(id);
+let hlsInstance = null;
+let currentCastMediaSession = null;
+
 function log(msg,t='info'){
   const el=$('log'),now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   el.innerHTML+=`\n<span class="lt">${now}</span><span class="l${t}">${msg}</span>`;
@@ -271,141 +163,147 @@ function setStatus(txt,cls=''){
 function setControls(on){
   ['btn-play','btn-pause','btn-stop','vol'].forEach(id=>$(id).disabled=!on);
 }
-function detectType(url){
-  if(url.includes('.m3u8')||url.includes('m3u8')) return 'application/x-mpegURL';
+function detectContentType(url){
+  if(url.includes('.m3u8')) return 'application/x-mpegURL';
   if(url.includes('.mpd')) return 'application/dash+xml';
   if(url.includes('.mkv')) return 'video/x-matroska';
   return 'video/mp4';
 }
-function detectStreamType(url){
-  return (url.includes('.m3u8')||url.includes('.mpd'))
-    ? chrome.cast.media.StreamType.LIVE
-    : chrome.cast.media.StreamType.BUFFERED;
-}
 
-// ── Presets ───────────────────────────────────────────────────────────────────
-document.querySelectorAll('.preset').forEach(p=>{
-  p.addEventListener('click',()=>{
-    document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
-    p.classList.add('active');
-    $('url').value=p.dataset.url;
-  });
-});
-// Set initial URL to the first active preset
-$('url').value=document.querySelector('.preset.active').dataset.url;
-
-// ═════════════════════════════════════════════════════════════════════════════
-// AIRPLAY SETUP
-// ═════════════════════════════════════════════════════════════════════════════
-const apVideo = $('airplay-video');
-let hlsInstance = null;
-
-function setupAirPlay(){
-  log('iOS detected — AirPlay mode','ok');
-
-  // Update UI for AirPlay
-  const btn=$('cast-trigger');
-  btn.className='';
-  btn.style.cssText='display:flex;align-items:center;gap:6px;background:#fc3c4415;border:1px solid #fc3c44;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:#fc3c44;cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:system-ui;';
-  // AirPlay SVG icon
-  $('trigger-icon').innerHTML='<path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5l-1 1v1h10v-1l-1-1h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 12H3V5h18v10z"/>';
-  $('cast-trigger-label').textContent='AirPlay';
-
-  $('btn-cast').disabled=false;
-  $('btn-cast').classList.add('airplay-mode');
-  $('btn-cast-label').textContent='Cast via AirPlay';
-  $('ap-note').style.display='block';
-
-  setStatus('Tap "Cast via AirPlay" to open device picker');
-
-  // ✅ Check if AirPlay is available on this device
-  if(window.WebKitPlaybackTargetAvailabilityEvent){
-    apVideo.addEventListener('webkitplaybacktargetavailabilitychanged', e=>{
-      if(e.availability==='available'){
-        log('AirPlay devices found nearby ✓','ok');
-        setStatus('AirPlay devices available — tap Cast','connected');
-      } else {
-        log('No AirPlay devices found yet','warn');
-        setStatus('No AirPlay devices found — ensure same WiFi');
-      }
-    });
+// ── 1. PRE-CAST HLS TRACK DETECTION ─────────────────────────────────────────
+function detectClientTracks() {
+  const url = $('url').value.trim();
+  if(!url) { log('Enter a URL first to detect tracks', 'warn'); return; }
+  
+  if(!url.includes('.m3u8')) {
+    log('Client track detection is only for HLS (.m3u8). MKV/MP4 tracks will detect automatically after you click Cast.', 'warn');
+    return;
   }
 
-  // ✅ When AirPlay session starts
-  apVideo.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', ()=>{
-    if(apVideo.webkitCurrentPlaybackTargetIsWireless){
-      log('✓ AirPlay casting started','ok');
-      setStatus('AirPlay casting...','airplaying');
-      setControls(true);
-      $('np').classList.add('show');
-      showDeviceBadge('airplay','📺','AirPlay',$('url').value.split('/').pop()||'Stream');
-    } else {
-      log('AirPlay ended','warn');
-      setStatus('Tap "Cast via AirPlay" to reconnect');
-      setControls(false);
-      $('np').classList.remove('show');
-      hideDeviceBadge();
+  if (Hls.isSupported()) {
+    log('Scanning HLS manifest for tracks...', 'info');
+    if(hlsInstance) hlsInstance.destroy();
+    
+    hlsInstance = new Hls();
+    hlsInstance.loadSource(url);
+    
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+      log(`Found HLS Tracks: ${data.levels.length} Qualities`, 'ok');
+      
+      // Populate Quality
+      $('qual-sel').innerHTML = '<option value="">Quality: Auto</option>';
+      data.levels.forEach((level, index) => {
+        $('qual-sel').innerHTML += `<option value="${index}">${level.height}p (${Math.round(level.bitrate/1000)} kbps)</option>`;
+      });
+
+      // Populate Audio
+      $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
+      if(hlsInstance.audioTracks && hlsInstance.audioTracks.length > 0) {
+        hlsInstance.audioTracks.forEach((track, index) => {
+          $('audio-sel').innerHTML += `<option value="${index}">${track.name || track.lang || 'Track '+index}</option>`;
+        });
+      }
+
+      // Populate Subtitles
+      $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
+      if(hlsInstance.subtitleTracks && hlsInstance.subtitleTracks.length > 0) {
+        hlsInstance.subtitleTracks.forEach((track, index) => {
+          $('sub-sel').innerHTML += `<option value="${index}">${track.name || track.lang || 'Sub '+index}</option>`;
+        });
+      }
+    });
+
+    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+      if (data.fatal) log('Failed to parse HLS: ' + data.type, 'err');
+    });
+  } else {
+    log('HLS parsing not supported in this browser.', 'err');
+  }
+}
+
+// ── 2. POST-CAST CHROMECAST TRACK DETECTION ─────────────────────────────────
+function parseChromecastTracks(mediaInfo) {
+  if(!mediaInfo || !mediaInfo.tracks) {
+    log('TV did not report any extra embedded tracks.', 'warn');
+    return;
+  }
+  
+  log('TV loaded media. Embedded tracks found!', 'ok');
+  
+  $('audio-sel').innerHTML = '<option value="">Audio: Default</option>';
+  $('sub-sel').innerHTML = '<option value="">Subtitle: None</option>';
+  
+  let audioFound = false, subFound = false;
+
+  mediaInfo.tracks.forEach(t => {
+    let trackName = t.name || t.language || 'Track ' + t.trackId;
+    if(t.type === 'AUDIO') {
+      audioFound = true;
+      $('audio-sel').innerHTML += `<option value="${t.trackId}">🔊 ${trackName}</option>`;
+    } else if(t.type === 'TEXT') {
+      subFound = true;
+      $('sub-sel').innerHTML += `<option value="${t.trackId}">💬 ${trackName}</option>`;
     }
   });
 
-  log('AirPlay ready','ok');
+  if(audioFound || subFound) log('Select tracks from the dropdowns to switch instantly.', 'info');
 }
 
-function loadStreamForAirPlay(url){
-  // ✅ iOS Safari plays HLS natively — just set src directly
-  // hls.js is NOT needed for AirPlay, Safari handles it natively
-  if(hlsInstance){ hlsInstance.destroy(); hlsInstance=null; }
+// ── 3. UPDATE CHROMECAST TRACKS ON-THE-FLY ─────────────────────────────────
+function updateCastTracks() {
+  if (isIOS) return; // iOS handles tracks natively in AirPlay menu
+  
+  if(!currentCastMediaSession) {
+    log('Start casting first to change tracks.', 'warn');
+    return;
+  }
 
-  apVideo.src=url;
-  apVideo.load();
+  const activeTrackIds = [];
+  const aId = parseInt($('audio-sel').value);
+  const sId = parseInt($('sub-sel').value);
+  
+  if(!isNaN(aId)) activeTrackIds.push(aId);
+  if(!isNaN(sId)) activeTrackIds.push(sId);
 
-  // Play briefly to "activate" the element (required for picker to work)
-  const playPromise=apVideo.play();
-  if(playPromise){
-    playPromise.catch(()=>{
-      // Autoplay blocked — that's fine, picker still works
+  const request = new chrome.cast.media.EditTracksInfoRequest(activeTrackIds);
+  currentCastMediaSession.editTracksInfo(request, 
+    () => log('Tracks successfully updated on TV!', 'ok'),
+    (err) => log('Failed to switch tracks: ' + (err.code || 'Unknown'), 'err')
+  );
+}
+
+// ── CAST SETUP (CHROMECAST & AIRPLAY) ──────────────────────────────────────
+const apVideo = $('airplay-video');
+
+function setupAirPlay(){
+  log('iOS detected — AirPlay mode','ok');
+  const btn=$('cast-trigger');
+  btn.className='';
+  btn.style.cssText='display:flex;align-items:center;gap:6px;background:#fc3c4415;border:1px solid #fc3c44;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:#fc3c44;cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:system-ui;';
+  $('trigger-icon').innerHTML='<path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5l-1 1v1h10v-1l-1-1h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 12H3V5h18v10z"/>';
+  $('cast-trigger-label').textContent='AirPlay';
+  $('btn-cast').disabled=false;
+  $('btn-cast').classList.add('airplay-mode');
+  setStatus('Tap "Cast to TV" for AirPlay');
+
+  if(window.WebKitPlaybackTargetAvailabilityEvent){
+    apVideo.addEventListener('webkitplaybacktargetavailabilitychanged', e=>{
+      if(e.availability==='available') setStatus('AirPlay available','connected');
     });
   }
 
-  log('Stream loaded into AirPlay video element','info');
+  apVideo.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', ()=>{
+    if(apVideo.webkitCurrentPlaybackTargetIsWireless){
+      log('✓ AirPlay started. Select tracks on iOS Lock Screen.','ok');
+      setStatus('AirPlay casting...','airplaying');
+      setControls(true);
+    } else {
+      setStatus('AirPlay disconnected');
+      setControls(false);
+    }
+  });
 }
 
-function showAirPlayPicker(){
-  const url=$('url').value.trim();
-  if(!url){ log('Enter a stream URL first','err'); return; }
-
-  // Load stream into hidden video element
-  loadStreamForAirPlay(url);
-
-  // ✅ This is the magic line — triggers native iOS AirPlay picker
-  if(apVideo.webkitShowPlaybackTargetPicker){
-    apVideo.webkitShowPlaybackTargetPicker();
-    log('AirPlay picker opened','ok');
-    $('np-url').textContent=url;
-  } else {
-    log('AirPlay not supported on this browser','err');
-    setStatus('Use Safari on iPhone for AirPlay','error');
-  }
-}
-
-// AirPlay playback controls (controls the hidden video which is mirroring)
-function apPlay(){ apVideo.play().catch(()=>{}); log('▶ Playing','ok'); }
-function apPause(){
-  if(apVideo.paused){ apVideo.play().catch(()=>{}); log('▶ Resumed','ok'); }
-  else { apVideo.pause(); log('⏸ Paused','warn'); }
-}
-function apStop(){
-  apVideo.pause();
-  apVideo.src='';
-  setControls(false);
-  $('np').classList.remove('show');
-  hideDeviceBadge();
-  log('■ Stopped','warn');
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// CHROMECAST SETUP
-// ═════════════════════════════════════════════════════════════════════════════
 function initCast(){
   const ctx=cast.framework.CastContext.getInstance();
   ctx.setOptions({
@@ -418,8 +316,7 @@ function initCast(){
   btn.classList.add('ready');
   $('cast-trigger-label').textContent='Find TV';
   $('btn-cast').disabled=false;
-  setStatus('Tap "Find TV" to discover Chromecast devices');
-  log('Chromecast ready — tap Find TV','ok');
+  setStatus('Tap "Find TV" to pair device');
 
   ctx.addEventListener(
     cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
@@ -430,147 +327,79 @@ function initCast(){
         case S.SESSION_STARTED:
         case S.SESSION_RESUMED:
           const dev=session.getCastDevice().friendlyName;
-          log(`Connected: ${dev}`,'ok');
+          log(`Connected to: ${dev}`,'ok');
           setStatus(`Connected — ${dev}`,'connected');
           btn.className='';
           btn.style.cssText='display:flex;align-items:center;gap:6px;background:#22d47e18;border:1px solid #22d47e;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:#22d47e;cursor:pointer;font-family:system-ui;';
           $('cast-trigger-label').textContent=dev;
-          $('btn-cast').disabled=false;
-          showDeviceBadge('cast','📡','Chromecast',dev);
           break;
         case S.SESSION_ENDED:
-          log('Disconnected','warn');
-          setStatus('Tap "Find TV" to connect');
-          btn.style.cssText='';
-          btn.className='ready';
+          setStatus('Disconnected');
+          btn.style.cssText=''; btn.className='ready';
           $('cast-trigger-label').textContent='Find TV';
-          $('btn-cast').disabled=false;
           setControls(false);
-          $('np').classList.remove('show');
-          hideDeviceBadge();
-          break;
-        case S.NO_SESSION:
-          setStatus('Tap "Find TV" to discover devices');
+          currentCastMediaSession = null;
           break;
       }
     }
   );
 }
 
-function openCastDialog(){
-  if(typeof cast==='undefined'){ log('Cast SDK not ready','err'); return; }
-  const ctx=cast.framework.CastContext.getInstance();
-  const session=ctx.getCurrentSession();
-  if(session){ session.endSession(true); return; }
-  ctx.requestSession().then(()=>{
-    log('Session started','ok');
-  }).catch(err=>{
-    if(typeof err==='string'&&err.includes('cancel')) return;
-    log('Session: '+err,'warn');
-  });
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// UNIFIED TRIGGER — detects iOS vs Android and routes correctly
-// ═════════════════════════════════════════════════════════════════════════════
 function triggerCast(){
   if(isIOS){
-    showAirPlayPicker();
+    const url=$('url').value.trim();
+    if(!url){ log('Enter URL first','err'); return; }
+    apVideo.src=url; apVideo.load();
+    if(apVideo.webkitShowPlaybackTargetPicker) apVideo.webkitShowPlaybackTargetPicker();
   } else {
-    openCastDialog();
+    const ctx=cast.framework.CastContext.getInstance();
+    const session=ctx.getCurrentSession();
+    if(session) session.endSession(true);
+    else ctx.requestSession().then(()=>log('Session paired','ok')).catch(e=>{});
   }
 }
 
 function castStream(){
-  if(isIOS){
-    showAirPlayPicker();
-  } else {
-    // Chromecast
-    const url=$('url').value.trim();
-    if(!url){ log('Enter a stream URL','err'); return; }
-    const session=cast.framework.CastContext.getInstance()?.getCurrentSession();
-    if(!session){ log('Not connected — tap Find TV first','err'); return; }
-    const ctypeVal=$('ctype').value;
-    const contentType=ctypeVal==='auto'?detectType(url):ctypeVal;
-    log(`Loading stream...`,'info');
-    const mediaInfo=new chrome.cast.media.MediaInfo(url,contentType);
-    mediaInfo.streamType=detectStreamType(url);
-    const request=new chrome.cast.media.LoadRequest(mediaInfo);
-    request.autoplay=true;
-    session.loadMedia(request).then(()=>{
-      log('✓ Playing on TV','ok');
-      setStatus(`Casting — ${session.getCastDevice().friendlyName}`,'casting');
-      setControls(true);
-      $('np').classList.add('show');
-      $('np-url').textContent=url;
-      session.setVolume(parseFloat($('vol').value)).catch(()=>{});
-    }).catch(err=>{
-      log(`Failed: ${err}. Check CORS on stream.`,'err');
-    });
-  }
+  if(isIOS){ triggerCast(); return; }
+  
+  const url=$('url').value.trim();
+  if(!url){ log('Enter URL','err'); return; }
+  const session=cast.framework.CastContext.getInstance()?.getCurrentSession();
+  if(!session){ log('Connect to TV first','err'); return; }
+  
+  const contentType=detectContentType(url);
+  log(`Casting file...`,'info');
+  
+  const mediaInfo=new chrome.cast.media.MediaInfo(url,contentType);
+  const request=new chrome.cast.media.LoadRequest(mediaInfo);
+  request.autoplay=true;
+  
+  session.loadMedia(request).then(()=>{
+    log('✓ Playing on TV','ok');
+    setControls(true);
+    currentCastMediaSession = session.getMediaSession();
+    
+    // As soon as media loads, parse tracks TV found!
+    if(currentCastMediaSession && currentCastMediaSession.media) {
+       parseChromecastTracks(currentCastMediaSession.media);
+    }
+  }).catch(err=>{
+    log(`Failed to Cast. Check CORS. (${err})`,'err');
+  });
 }
 
-// ── Playback controls (routes to AirPlay or Cast) ─────────────────────────────
-function ctrlPlay(){
-  if(isIOS){ apPlay(); }
-  else {
-    const m=cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession();
-    if(m) m.play(null,()=>log('▶ Playing','ok'),e=>log('Error: '+e,'err'));
-  }
-}
-function ctrlPause(){
-  if(isIOS){ apPause(); }
-  else {
-    const m=cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession();
-    if(m) m.pause(null,()=>log('⏸ Paused','warn'),e=>log('Error: '+e,'err'));
-  }
-}
-function ctrlStop(){
-  if(isIOS){ apStop(); }
-  else {
-    const s=cast.framework.CastContext.getInstance()?.getCurrentSession();
-    const m=s?.getMediaSession();
-    if(m) m.stop(null,()=>{
-      log('■ Stopped','warn');
-      setControls(false);
-      $('np').classList.remove('show');
-      hideDeviceBadge();
-      if(s) setStatus(`Connected — ${s.getCastDevice().friendlyName}`,'connected');
-    },e=>log('Error: '+e,'err'));
-  }
-}
+function ctrlPlay(){ if(isIOS) apVideo.play(); else currentCastMediaSession?.play(null); }
+function ctrlPause(){ if(isIOS) apVideo.pause(); else currentCastMediaSession?.pause(null); }
+function ctrlStop(){ if(isIOS){ apVideo.pause(); apVideo.src=''; setControls(false); } else { cast.framework.CastContext.getInstance()?.getCurrentSession()?.getMediaSession()?.stop(null); setControls(false); } }
 function ctrlVol(el){
   const v=parseFloat(el.value);
-  $('vval').textContent=Math.round(v*100)+'%';
-  if(isIOS){ apVideo.volume=v; }
-  else { cast.framework.CastContext.getInstance()?.getCurrentSession()?.setVolume(v).catch(()=>{}); }
+  if(isIOS) apVideo.volume=v;
+  else cast.framework.CastContext.getInstance()?.getCurrentSession()?.setVolume(v);
 }
 
-// ── Device badge ──────────────────────────────────────────────────────────────
-function showDeviceBadge(type,icon,proto,name){
-  $('badge-icon').textContent=icon;
-  $('badge-proto').textContent=proto;
-  $('badge-proto').className='badge-proto '+type;
-  $('badge-name').textContent=name;
-  $('device-badge').classList.add('show');
-}
-function hideDeviceBadge(){ $('device-badge').classList.remove('show'); }
-
-// ═════════════════════════════════════════════════════════════════════════════
-// INIT — route based on device
-// ═════════════════════════════════════════════════════════════════════════════
 (function init(){
-  log(`Device: ${isIOS?'iPhone/iPad':isAndroid?'Android':'Desktop'}`,'info');
-
-  if(isIOS){
-    // iOS — AirPlay path, don't wait for Cast SDK
-    setupAirPlay();
-  } else {
-    // Android / Desktop — Cast SDK path
-    // initCast() is called by __onGCastApiAvailable when SDK loads
-    setStatus('Loading Cast SDK...');
-    log('Waiting for Cast SDK...','info');
-  }
+  if(isIOS) setupAirPlay();
+  else setStatus('Loading Cast SDK...');
 })();
 </script>
 </body>
